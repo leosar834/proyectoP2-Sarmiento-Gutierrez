@@ -9,7 +9,7 @@
 ### user:NicoG95 email: 38975442@populorumjujuy.ar 
 ## Profesores: Serrano Manuel, Hoyos Oscar 
 
-## Definicion del problema:
+## Definición del problema:
 ### Actualmente el registro de asistencia de los alumnos se realiza mediante planillas fisicas de papel. Este metodo genera una comunicacion lenta entre preceptores, docentes de taller y docentes de educacion fisica dificultando el seguimiento diario y la verificacion de datos al finalizar cada jornada.
 
 ## Objetivo General:
@@ -74,7 +74,7 @@
 
 ## Tecnica
 #### El proyecto se considera tecnicamente viable, dado que se desarrolla utilizando herramientas de software de libre distribucion y de codigo abierto.
-#### El proyecto se implementa en Laravel a traves del entorno de desarrollo Laragon. El desarrollador cuenta con los conocimientos basicos en desarrollo de aplicaciones web
+#### El proyecto se implementa en Laravel, el tratamiendo de los datos a traves del entorno Laragon. El desarrollador cuenta con los conocimientos basicos en desarrollo de aplicaciones web
 
 ## Economica
 #### Desde el punto de vista economico, el proyecto no aplica costos significativos ya que se desarrolla con herramientas gratuitas como Laragon, Java, Laravel, Figma
