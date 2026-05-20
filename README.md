@@ -15,6 +15,9 @@
 ## Objetivo General:
 ### Desarrollar un sistema de asistencia digital propio para la institucion, o instituciones en general, que permita el registro de alumnos a traves de los dispositivos moviles del personal docente y administrativo. 
 
+### objetivo gral del profes
+Desarrollar un sistema multiplataforma para la gestión y control de asistencia en una escuela secundaria con tres turnos, que permita registrar, monitorear y administrar de manera eficiente la asistencia de los estudiantes y docentes, optimizando los procesos institucionales, mejorando la disponibilidad de la información en tiempo real y facilitando la toma de decisiones administrativas y pedagógicas.
+
 ## Objetivos Especificos:
 #### . Digitalizacion: Eliminar el uso de planillas fisicas para asistencia en talleres y aulas teoricas.
 #### . Optimizacion: Agilizar la carga de datos de asistencia mediante un sistema movil que sea intuitiva tanto para profesores y preceptores.
