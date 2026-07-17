@@ -1,0 +1,8 @@
+# Cruft de sistema operativo
+.DS_Store
+Thumbs.db
+
+# Configuración local de editor a nivel de todo el repo (cada subproyecto
+# ya trae su propio .gitignore para lo suyo)
+/.vscode/
+/.idea/
