@@ -2,11 +2,6 @@
 .DS_Store
 Thumbs.db
 
-# Schema de la base de datos: por pedido de la cátedra no se versiona en
-# el repo. Se distribuye como asset adjunto en GitHub Releases — ver
-# README.md, sección "Base de datos".
-/schema.sql
-
 # Configuración local de editor a nivel de todo el repo (cada subproyecto
 # ya trae su propio .gitignore para lo suyo)
 /.vscode/

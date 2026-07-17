@@ -121,18 +121,14 @@ Desarrollar un sistema multiplataforma para la gestión y control de asistencia 
 
 ### Procedimiento de instalacion
 
-> **`schema.sql` no está en este repositorio**
-. Se distribuye como archivo adjunto en la sección [Releases](../../releases) de este mismo repo — bajalo de ahí antes de migrar.
-
 **Backend (Laravel):**
 1. `cd backend-laravel`
 2. `composer install`
 3. Copiar `.env.example` a `.env` y completar los datos de conexión a MySQL (por defecto: base `sistema_asistencia`, usuario `root`).
 4. `php artisan key:generate`
-5. Descargar `schema.sql` desde [Releases](../../releases) y colocarlo en `database/sql/schema.sql`.
-6. `php artisan migrate` — crea las 29 tablas, función, procedimiento, 8 triggers y 2 vistas definidas en `database/sql/schema.sql`.
-7. `php artisan db:seed` — carga el catálogo fijo de permisos, los 7 roles iniciales de la EETN.° 1 y un usuario administrador de prueba.
-8. `php artisan serve`
+5. `php artisan migrate` — crea las 29 tablas, función, procedimiento, 8 triggers y 2 vistas definidas en `database/sql/schema.sql`.
+6. `php artisan db:seed` — carga el catálogo fijo de permisos, los 7 roles iniciales de la EETN.° 1 y un usuario administrador de prueba.
+7. `php artisan serve`
 
 **App Flutter:**
 1. `cd app_flutter`
@@ -148,4 +144,4 @@ Desarrollar un sistema multiplataforma para la gestión y control de asistencia 
 
 - `backend-laravel/` — API en Laravel 13 (PHP 8.3+, MySQL 8.0+). Autenticación por token con Sanctum.
 - `app_flutter/` — app Flutter: móvil para los roles operativos (preceptor, profesor de taller, preceptor de taller, profesor de educación física) y web para el administrador de escritorio.
-- `schema.sql` — script SQL completo del modelo de datos: 29 tablas, función, procedimiento, 8 triggers y 2 vistas. Es la fuente de verdad del esquema. **No está versionado en este repo** (ver nota en "Base de datos" más arriba) — se descarga desde [Releases](../../releases) y se coloca en `backend-laravel/database/sql/schema.sql`, que es la copia que efectivamente carga la migración `2026_07_17_100000_create_sistema_asistencia_schema`.
+- `schema.sql` — script SQL completo del modelo de datos: 29 tablas, función, procedimiento, 8 triggers y 2 vistas. Es la fuente de verdad del esquema. `backend-laravel/database/sql/schema.sql` es la copia que efectivamente carga la migración `2026_07_17_100000_create_sistema_asistencia_schema` — se mantienen sincronizadas a mano cada vez que se edita el esquema.
