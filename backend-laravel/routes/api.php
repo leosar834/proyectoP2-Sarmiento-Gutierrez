@@ -11,4 +11,6 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // A medida que avancemos módulo por módulo (cursos, alumnos, asistencia...)
-// las rutas de cada uno se agregan acá adentro del grupo auth:sanctum.
+// las rutas de cada uno se agregan acá adentro del grupo auth:sanctum,
+// encadenando el middleware `permiso:<nombre>` donde corresponda. Ejemplo:
+// Route::middleware('permiso:tomar_asistencia')->post('/asistencia', ...);
