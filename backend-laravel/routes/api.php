@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AsignacionesController;
 use App\Http\Controllers\Api\AsistenciaController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\JustificacionesController;
+use App\Http\Controllers\Api\ReportesController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -41,11 +42,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/justificaciones/{justificacion}/notificar', [JustificacionesController::class, 'notificar']);
     });
 
-    // RF6 — Alertas Automáticas. Las genera MySQL; acá solo se listan y
-    // se marcan como atendidas (ver AlertasController).
+    // RF6 (alertas) y RF7 (reportes) comparten el mismo permiso de
+    // visibilidad institucional — ver AlertasController y
+    // ReportesController.
     Route::middleware('permiso:ver_reportes')->group(function () {
         Route::get('/alertas', [AlertasController::class, 'index']);
         Route::patch('/alertas/{alerta}/atender', [AlertasController::class, 'atender']);
+
+        Route::get('/reportes/faltas-por-curso', [ReportesController::class, 'faltasPorCurso']);
+        Route::get('/reportes/alumnos/{inscripcion}/estadisticas', [ReportesController::class, 'estadisticasAlumno']);
     });
 });
 
