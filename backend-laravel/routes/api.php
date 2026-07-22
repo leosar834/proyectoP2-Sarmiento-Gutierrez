@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AlertasController;
 use App\Http\Controllers\Api\AsignacionesController;
 use App\Http\Controllers\Api\AsistenciaController;
 use App\Http\Controllers\Api\AuthController;
@@ -38,6 +39,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/justificaciones', [JustificacionesController::class, 'crear']);
         Route::get('/justificaciones/pendientes', [JustificacionesController::class, 'pendientes']);
         Route::patch('/justificaciones/{justificacion}/notificar', [JustificacionesController::class, 'notificar']);
+    });
+
+    // RF6 — Alertas Automáticas. Las genera MySQL; acá solo se listan y
+    // se marcan como atendidas (ver AlertasController).
+    Route::middleware('permiso:ver_reportes')->group(function () {
+        Route::get('/alertas', [AlertasController::class, 'index']);
+        Route::patch('/alertas/{alerta}/atender', [AlertasController::class, 'atender']);
     });
 });
 
