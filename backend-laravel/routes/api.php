@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AsignacionesController;
 use App\Http\Controllers\Api\AsistenciaController;
 use App\Http\Controllers\Api\AuthController;
 use Illuminate\Support\Facades\Route;
@@ -9,6 +10,10 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+
+    // Qué curso/grupos son míos, del ciclo lectivo abierto — sin
+    // `permiso:` puntual, igual que /me (ver AsignacionesController).
+    Route::get('/mis-asignaciones', [AsignacionesController::class, 'index']);
 
     // RF2 — Registro de Asistencia. Cada ruta encadena, además de
     // auth:sanctum, el permiso puntual que le corresponde según la
