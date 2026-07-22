@@ -50,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/alertas/{alerta}/atender', [AlertasController::class, 'atender']);
 
         Route::get('/reportes/faltas-por-curso', [ReportesController::class, 'faltasPorCurso']);
+        Route::get('/reportes/faltas-por-curso/exportar', [ReportesController::class, 'exportarFaltasPorCurso']);
         Route::get('/reportes/alumnos/{inscripcion}/estadisticas', [ReportesController::class, 'estadisticasAlumno']);
     });
 });

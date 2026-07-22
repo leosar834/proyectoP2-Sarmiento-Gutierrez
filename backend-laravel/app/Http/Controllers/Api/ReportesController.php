@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exports\FaltasPorCursoExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Reportes\FaltasPorCursoRequest;
 use App\Models\Curso;
@@ -10,22 +11,25 @@ use App\Models\Inscripcion;
 use App\Models\Justificacion;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
- * Implementa el lado JSON de RF7 (Reportes y Estadísticas). La
- * exportación a Excel (.xlsx) que también pide la narrativa queda para
- * un commit aparte, una vez que se instale y pruebe la dependencia de
- * Composer correspondiente — separado a propósito de la lógica de
- * negocio de este commit.
+ * Implementa RF7 (Reportes y Estadísticas): dos vistas en JSON
+ * (`faltasPorCurso`, `estadisticasAlumno`) para un futuro cliente
+ * Flutter, y la exportación a `.xlsx` de la primera — "el formato de
+ * exportación principal es Excel", según la narrativa.
  *
- * Ninguna de las dos respuestas de este controller envuelve un modelo
- * Eloquent 1:1 (son agregados armados a partir de varias tablas), así
- * que se devuelven como arrays planos vía `response()->json()` en vez
- * de forzarlos dentro de un JsonResource — mismo criterio que ya se
- * usó en AsignacionesController.
+ * Ninguna de las respuestas JSON envuelve un modelo Eloquent 1:1 (son
+ * agregados armados a partir de varias tablas), así que se devuelven
+ * como arrays planos vía `response()->json()` en vez de forzarlos
+ * dentro de un JsonResource — mismo criterio que ya se usó en
+ * AsignacionesController.
  *
- * Ambas rutas van detrás de `permiso:ver_reportes` (ver routes/api.php).
+ * Todas las rutas van detrás de `permiso:ver_reportes` (ver
+ * routes/api.php).
  */
 class ReportesController extends Controller
 {
@@ -33,64 +37,12 @@ class ReportesController extends Controller
      * Faltas por alumno de un curso, en un rango de fechas explícito
      * (ver la nota en FaltasPorCursoRequest sobre por qué no hay un
      * cálculo automático de "esta semana"/"este mes"/"este trimestre").
-     * Solo cuenta inscripciones con `estado = activo`: el reporte
-     * describe la matrícula actual del curso, no el historial completo
-     * de quien pasó por él.
      */
     public function faltasPorCurso(FaltasPorCursoRequest $request): JsonResponse
     {
         $datos = $request->validated();
-
         $curso = Curso::with(['nivel', 'division'])->findOrFail($datos['curso_id']);
-
-        $inscripciones = Inscripcion::where('curso_id', $curso->id_curso)
-            ->where('estado', 'activo')
-            ->with('alumno')
-            ->get();
-
-        $conteosPorInscripcion = DetalleAsistencia::query()
-            ->join('planillas_asistencia', 'planillas_asistencia.id_planilla', '=', 'detalles_asistencia.planilla_id')
-            // Sin este filtro, un alumno que también curse taller o
-            // educación física arrastraría esas faltas al reporte "del
-            // curso" — el JOIN por inscripcion_id solo garantiza que el
-            // alumno pertenece al curso, no que la planilla sea la de
-            // ese curso en particular (taller/ed_fisica usan sus
-            // propios grupos, no `curso_id`).
-            ->where('planillas_asistencia.area', 'teorica')
-            ->where('planillas_asistencia.curso_id', $curso->id_curso)
-            ->whereIn('detalles_asistencia.inscripcion_id', $inscripciones->pluck('id_inscripcion'))
-            ->whereBetween('planillas_asistencia.fecha', [$datos['fecha_inicio'], $datos['fecha_fin']])
-            ->groupBy('detalles_asistencia.inscripcion_id')
-            ->selectRaw(<<<'SQL'
-                detalles_asistencia.inscripcion_id as inscripcion_id,
-                SUM(detalles_asistencia.estado = 'presente') as presentes,
-                SUM(detalles_asistencia.estado = 'ausente') as ausentes,
-                SUM(detalles_asistencia.estado = 'tardanza') as tardanzas,
-                SUM(detalles_asistencia.estado = 'falta_justificada') as faltas_justificadas
-            SQL)
-            ->get()
-            ->keyBy('inscripcion_id');
-
-        $alumnos = $inscripciones
-            ->map(function (Inscripcion $inscripcion) use ($conteosPorInscripcion) {
-                $conteo = $conteosPorInscripcion->get($inscripcion->id_inscripcion);
-
-                return [
-                    'inscripcion_id' => $inscripcion->id_inscripcion,
-                    'alumno' => [
-                        'id_alumno' => $inscripcion->alumno->id_alumno,
-                        'nombre' => $inscripcion->alumno->nombre,
-                        'apellido' => $inscripcion->alumno->apellido,
-                        'dni' => $inscripcion->alumno->dni,
-                    ],
-                    'presentes' => (int) ($conteo->presentes ?? 0),
-                    'ausentes' => (int) ($conteo->ausentes ?? 0),
-                    'tardanzas' => (int) ($conteo->tardanzas ?? 0),
-                    'faltas_justificadas' => (int) ($conteo->faltas_justificadas ?? 0),
-                ];
-            })
-            ->sortBy('alumno.apellido')
-            ->values();
+        $alumnos = $this->alumnosConFaltas($curso, $datos['fecha_inicio'], $datos['fecha_fin']);
 
         return response()->json([
             'data' => [
@@ -105,6 +57,25 @@ class ReportesController extends Controller
                 'alumnos' => $alumnos,
             ],
         ]);
+    }
+
+    /**
+     * Mismo reporte que `faltasPorCurso()`, en .xlsx.
+     */
+    public function exportarFaltasPorCurso(FaltasPorCursoRequest $request): BinaryFileResponse
+    {
+        $datos = $request->validated();
+        $curso = Curso::with(['nivel', 'division'])->findOrFail($datos['curso_id']);
+        $alumnos = $this->alumnosConFaltas($curso, $datos['fecha_inicio'], $datos['fecha_fin']);
+
+        $nombreArchivo = sprintf(
+            'faltas_curso_%d_%s_a_%s.xlsx',
+            $curso->id_curso,
+            $datos['fecha_inicio'],
+            $datos['fecha_fin']
+        );
+
+        return Excel::download(new FaltasPorCursoExport($alumnos), $nombreArchivo);
     }
 
     /**
@@ -168,5 +139,64 @@ class ReportesController extends Controller
                 'historial_justificaciones' => $justificaciones,
             ],
         ]);
+    }
+
+    /**
+     * Solo cuenta inscripciones con `estado = activo`: el reporte
+     * describe la matrícula actual del curso, no el historial completo
+     * de quien pasó por él. Compartido entre `faltasPorCurso()` (JSON)
+     * y `exportarFaltasPorCurso()` (.xlsx) para no calcular esto dos
+     * veces con el riesgo de que se desincronicen.
+     */
+    private function alumnosConFaltas(Curso $curso, string $fechaInicio, string $fechaFin): Collection
+    {
+        $inscripciones = Inscripcion::where('curso_id', $curso->id_curso)
+            ->where('estado', 'activo')
+            ->with('alumno')
+            ->get();
+
+        $conteosPorInscripcion = DetalleAsistencia::query()
+            ->join('planillas_asistencia', 'planillas_asistencia.id_planilla', '=', 'detalles_asistencia.planilla_id')
+            // Sin este filtro, un alumno que también curse taller o
+            // educación física arrastraría esas faltas al reporte "del
+            // curso" — el JOIN por inscripcion_id solo garantiza que el
+            // alumno pertenece al curso, no que la planilla sea la de
+            // ese curso en particular (taller/ed_fisica usan sus
+            // propios grupos, no `curso_id`).
+            ->where('planillas_asistencia.area', 'teorica')
+            ->where('planillas_asistencia.curso_id', $curso->id_curso)
+            ->whereIn('detalles_asistencia.inscripcion_id', $inscripciones->pluck('id_inscripcion'))
+            ->whereBetween('planillas_asistencia.fecha', [$fechaInicio, $fechaFin])
+            ->groupBy('detalles_asistencia.inscripcion_id')
+            ->selectRaw(<<<'SQL'
+                detalles_asistencia.inscripcion_id as inscripcion_id,
+                SUM(detalles_asistencia.estado = 'presente') as presentes,
+                SUM(detalles_asistencia.estado = 'ausente') as ausentes,
+                SUM(detalles_asistencia.estado = 'tardanza') as tardanzas,
+                SUM(detalles_asistencia.estado = 'falta_justificada') as faltas_justificadas
+            SQL)
+            ->get()
+            ->keyBy('inscripcion_id');
+
+        return $inscripciones
+            ->map(function (Inscripcion $inscripcion) use ($conteosPorInscripcion) {
+                $conteo = $conteosPorInscripcion->get($inscripcion->id_inscripcion);
+
+                return [
+                    'inscripcion_id' => $inscripcion->id_inscripcion,
+                    'alumno' => [
+                        'id_alumno' => $inscripcion->alumno->id_alumno,
+                        'nombre' => $inscripcion->alumno->nombre,
+                        'apellido' => $inscripcion->alumno->apellido,
+                        'dni' => $inscripcion->alumno->dni,
+                    ],
+                    'presentes' => (int) ($conteo->presentes ?? 0),
+                    'ausentes' => (int) ($conteo->ausentes ?? 0),
+                    'tardanzas' => (int) ($conteo->tardanzas ?? 0),
+                    'faltas_justificadas' => (int) ($conteo->faltas_justificadas ?? 0),
+                ];
+            })
+            ->sortBy('alumno.apellido')
+            ->values();
     }
 }
