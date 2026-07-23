@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AsignacionesController;
 use App\Http\Controllers\Api\AsistenciaController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CierreCicloController;
+use App\Http\Controllers\Api\DesenlacesController;
 use App\Http\Controllers\Api\JustificacionesController;
 use App\Http\Controllers\Api\ReportesController;
 use Illuminate\Support\Facades\Route;
@@ -55,10 +56,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reportes/alumnos/{inscripcion}/estadisticas', [ReportesController::class, 'estadisticasAlumno']);
     });
 
-    // Fase 1 del cierre de ciclo (RF1, "dar inicio y fin del ciclo
-    // lectivo") — ver CierreCicloController.
-    Route::middleware('permiso:gestionar_sistema')
-        ->post('/ciclos-lectivos/{ciclo}/cerrar', [CierreCicloController::class, 'cerrar']);
+    // Proceso de Cierre y Apertura en Cuatro Fases. Fase 1 (cierre) y
+    // Fase 2 (desenlaces) por ahora — ver CierreCicloController y
+    // DesenlacesController.
+    Route::middleware('permiso:gestionar_sistema')->group(function () {
+        Route::post('/ciclos-lectivos/{ciclo}/cerrar', [CierreCicloController::class, 'cerrar']);
+
+        Route::post('/ciclos-lectivos/{ciclo}/desenlaces/inicializar', [DesenlacesController::class, 'inicializar']);
+        Route::get('/ciclos-lectivos/{ciclo}/desenlaces', [DesenlacesController::class, 'index']);
+        Route::put('/desenlaces/{desenlace}', [DesenlacesController::class, 'actualizar']);
+    });
 });
 
 // A medida que avancemos módulo por módulo (cursos, alumnos, reportes...)
