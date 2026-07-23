@@ -100,6 +100,7 @@ return new class extends Migration
             DB::unprepared("DROP VIEW IF EXISTS {$vista}");
         }
 
+        DB::unprepared('DROP PROCEDURE IF EXISTS sp_cerrar_ciclo');
         DB::unprepared('DROP PROCEDURE IF EXISTS sp_recalcular_contador');
         DB::unprepared('DROP FUNCTION IF EXISTS fn_planilla_bloqueada');
 

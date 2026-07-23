@@ -5,23 +5,9 @@
 --
 -- Convenciones: tablas en plural | PK = id_<entidad> | FK = <entidad>_id
 -- Documentación completa: ver "Documentacion_Base_de_Datos.pdf"
---
--- Borrado lógico (deleted_at, convención SoftDeletes de Laravel): lo
--- llevan usuarios, roles, alumnos, niveles, divisiones, especialidades,
--- materias_taller, cursos, grupos_taller y grupos_ed_fisica. Limitación
--- conocida: los UNIQUE existentes (ej. usuarios.email, alumnos.dni) NO
--- incluyen deleted_at, así que una fila borrada lógicamente sigue
--- "ocupando" ese valor único hasta que se restaure o se borre físico.
--- La aplicación debe verificar con withTrashed() antes de crear una fila
--- nueva con un valor que ya usó una fila eliminada, y restaurarla si
--- corresponde en vez de intentar crear una duplicada.
 -- =====================================================================
 
-CREATE DATABASE IF NOT EXISTS sistema_asistencia
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
 
-USE sistema_asistencia;
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -50,7 +36,6 @@ CREATE TABLE roles (
     activo          BOOLEAN NOT NULL DEFAULT TRUE,
     created_at      DATETIME NULL,
     updated_at      DATETIME NULL,
-    deleted_at      DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     UNIQUE KEY uq_roles_nombre (nombre)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -73,7 +58,6 @@ CREATE TABLE usuarios (
     activo          BOOLEAN NOT NULL DEFAULT TRUE,
     created_at      DATETIME NULL,
     updated_at      DATETIME NULL,
-    deleted_at      DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes). Distinto de "activo": desactivar bloquea el login, eliminar lo saca de los listados.',
     UNIQUE KEY uq_usuarios_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -130,7 +114,6 @@ CREATE TABLE niveles (
     numero_orden    SMALLINT UNSIGNED NOT NULL COMMENT 'Orden interno usado para promocionar N -> N+1.',
     created_at      DATETIME NULL,
     updated_at      DATETIME NULL,
-    deleted_at      DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     UNIQUE KEY uq_niveles_orden (numero_orden)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -139,7 +122,6 @@ CREATE TABLE divisiones (
     nombre          VARCHAR(20) NOT NULL,
     created_at      DATETIME NULL,
     updated_at      DATETIME NULL,
-    deleted_at      DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     UNIQUE KEY uq_divisiones_nombre (nombre)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -148,7 +130,6 @@ CREATE TABLE especialidades (
     nombre          VARCHAR(100) NOT NULL,
     created_at      DATETIME NULL,
     updated_at      DATETIME NULL,
-    deleted_at      DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     UNIQUE KEY uq_especialidades_nombre (nombre)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -160,7 +141,6 @@ CREATE TABLE cursos (
     turno            ENUM('mañana','tarde','noche') NOT NULL,
     created_at       DATETIME NULL,
     updated_at       DATETIME NULL,
-    deleted_at       DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     UNIQUE KEY uq_cursos_nivel_division_ciclo (nivel_id, division_id, ciclo_lectivo_id),
     KEY idx_cursos_division (division_id),
     KEY idx_cursos_ciclo (ciclo_lectivo_id),
@@ -185,7 +165,6 @@ CREATE TABLE materias_taller (
     regimen_cursada    ENUM('anual','trimestral','semestral','personalizado') NOT NULL,
     created_at         DATETIME NULL,
     updated_at         DATETIME NULL,
-    deleted_at         DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     KEY idx_materias_taller_especialidad (especialidad_id),
     CONSTRAINT fk_mt_especialidad FOREIGN KEY (especialidad_id) REFERENCES especialidades(id_especialidad)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -198,7 +177,6 @@ CREATE TABLE grupos_taller (
     nombre_grupo       VARCHAR(50) NOT NULL,
     created_at         DATETIME NULL,
     updated_at         DATETIME NULL,
-    deleted_at         DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     UNIQUE KEY uq_grupos_taller (materia_taller_id, nivel_id, ciclo_lectivo_id, nombre_grupo),
     KEY idx_grupos_taller_nivel (nivel_id),
     KEY idx_grupos_taller_ciclo (ciclo_lectivo_id),
@@ -227,7 +205,6 @@ CREATE TABLE grupos_ed_fisica (
     profesor_id          INT UNSIGNED NOT NULL,
     created_at           DATETIME NULL,
     updated_at           DATETIME NULL,
-    deleted_at            DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     UNIQUE KEY uq_grupos_ed_fisica (ciclo_lectivo_id, nombre_grupo),
     KEY idx_gef_profesor (profesor_id),
     CONSTRAINT fk_gef_ciclo    FOREIGN KEY (ciclo_lectivo_id) REFERENCES ciclos_lectivos(id_ciclo_lectivo),
@@ -249,7 +226,6 @@ CREATE TABLE alumnos (
     fecha_ingreso_institucion  DATE NOT NULL,
     created_at                 DATETIME NULL,
     updated_at                 DATETIME NULL,
-    deleted_at                 DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes). El legajo no se borra físicamente.',
     UNIQUE KEY uq_alumnos_dni (dni)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -470,7 +446,6 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- 10. FUNCIÓN AUXILIAR: ¿LA PLANILLA ESTÁ BLOQUEADA?
 -- =====================================================================
 
-DELIMITER $$
 
 CREATE FUNCTION fn_planilla_bloqueada(p_planilla_id INT UNSIGNED)
 RETURNS BOOLEAN
@@ -480,9 +455,8 @@ BEGIN
     DECLARE v_estado VARCHAR(20);
     SELECT estado INTO v_estado FROM planillas_asistencia WHERE id_planilla = p_planilla_id;
     RETURN v_estado = 'bloqueada';
-END$$
+END;
 
-DELIMITER ;
 
 
 -- =====================================================================
@@ -490,7 +464,6 @@ DELIMITER ;
 -- =====================================================================
 -- Se invoca desde los triggers de detalles_asistencia y justificaciones.
 
-DELIMITER $$
 
 CREATE PROCEDURE sp_recalcular_contador(IN p_inscripcion_id INT UNSIGNED)
 BEGIN
@@ -573,9 +546,8 @@ BEGIN
         VALUES (p_inscripcion_id, 'seguimiento', NOW(),
                 CONCAT('Acumuló ', v_faltas_general, ' faltas globales.'), 'activa');
     END IF;
-END$$
+END;
 
-DELIMITER ;
 
 
 -- =====================================================================
@@ -584,7 +556,6 @@ DELIMITER ;
 
 -- Permiso diario: no se puede crear una planilla nueva para HOY si no
 -- hay un permiso abierto y vigente. No aplica a correcciones históricas.
-DELIMITER $$
 
 CREATE TRIGGER trg_planillas_before_insert
 BEFORE INSERT ON planillas_asistencia
@@ -601,14 +572,12 @@ BEGIN
                 SET MESSAGE_TEXT = 'No hay un permiso diario abierto para tomar asistencia hoy.';
         END IF;
     END IF;
-END$$
+END;
 
-DELIMITER ;
 
 -- Bloqueo de planillas ya enviadas/verificadas. La app debe ejecutar
 -- `SET @permitir_correccion_admin = 1;` antes de una corrección
 -- autorizada por jefa de preceptores/administrador.
-DELIMITER $$
 
 CREATE TRIGGER trg_detalles_before_insert
 BEFORE INSERT ON detalles_asistencia
@@ -619,7 +588,7 @@ BEGIN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'La planilla está bloqueada. Solo jefa de preceptores/administrador puede corregirla.';
     END IF;
-END$$
+END;
 
 CREATE TRIGGER trg_detalles_before_update
 BEFORE UPDATE ON detalles_asistencia
@@ -630,54 +599,49 @@ BEGIN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'La planilla está bloqueada. Solo jefa de preceptores/administrador puede corregirla.';
     END IF;
-END$$
+END;
 
-DELIMITER ;
 
 -- Recalcular contadores y evaluar alertas automáticamente.
-DELIMITER $$
 
 CREATE TRIGGER trg_detalles_after_insert
 AFTER INSERT ON detalles_asistencia
 FOR EACH ROW
 BEGIN
     CALL sp_recalcular_contador(NEW.inscripcion_id);
-END$$
+END;
 
 CREATE TRIGGER trg_detalles_after_update
 AFTER UPDATE ON detalles_asistencia
 FOR EACH ROW
 BEGIN
     CALL sp_recalcular_contador(NEW.inscripcion_id);
-END$$
+END;
 
 CREATE TRIGGER trg_detalles_after_delete
 AFTER DELETE ON detalles_asistencia
 FOR EACH ROW
 BEGIN
     CALL sp_recalcular_contador(OLD.inscripcion_id);
-END$$
+END;
 
-DELIMITER ;
 
 -- Justificaciones: también recalculan el contador (justificaciones_total).
-DELIMITER $$
 
 CREATE TRIGGER trg_justificaciones_after_insert
 AFTER INSERT ON justificaciones
 FOR EACH ROW
 BEGIN
     CALL sp_recalcular_contador(NEW.inscripcion_id);
-END$$
+END;
 
 CREATE TRIGGER trg_justificaciones_after_delete
 AFTER DELETE ON justificaciones
 FOR EACH ROW
 BEGIN
     CALL sp_recalcular_contador(OLD.inscripcion_id);
-END$$
+END;
 
-DELIMITER ;
 
 
 -- =====================================================================
@@ -691,9 +655,7 @@ WHERE fecha = CURDATE()
   AND cerrado_manual = FALSE
   AND CURTIME() <= hora_limite;
 
--- Base para "planilla propia" (móvil) y reportes (escritorio). Excluye
--- alumnos con borrado lógico, igual que haría automáticamente el trait
--- SoftDeletes de Eloquent en una consulta normal.
+-- Base para "planilla propia" (móvil) y reportes (escritorio).
 CREATE VIEW vista_alumnos_contadores AS
 SELECT
     i.id_inscripcion,
@@ -713,5 +675,107 @@ SELECT
     c.fecha_actualizacion
 FROM inscripciones i
 JOIN alumnos a               ON a.id_alumno = i.alumno_id
-LEFT JOIN contadores_asistencia c ON c.inscripcion_id = i.id_inscripcion
-WHERE a.deleted_at IS NULL;
+LEFT JOIN contadores_asistencia c ON c.inscripcion_id = i.id_inscripcion;
+
+
+-- =====================================================================
+-- 14. PROCEDIMIENTO: CIERRE DE CICLO (FASE 1 DE 4)
+-- =====================================================================
+-- Fase 1 del "Proceso de Cierre y Apertura en Cuatro Fases" de la
+-- narrativa: calcula y congela el resultado final de cada inscripción
+-- activa del ciclo (porcentaje de inasistencia + condición regular/
+-- libre) y marca el ciclo como cerrado. Las otras tres fases (definir
+-- desenlaces, clonar estructura y generar inscripciones, población
+-- manual) quedan para más adelante — son lógica de proceso con
+-- decisiones humanas intercaladas entre fases, no estructura de tablas.
+--
+-- Simplificación documentada a propósito: la narrativa describe el
+-- resultado final "por materia, respetando el régimen de cada una",
+-- pero `resultados_finales` (sección 9) solo admite una fila por
+-- inscripción — no hay una tabla de materias con régimen propio en
+-- este modelo. Por eso acá la condición final es una sola por alumno,
+-- calculada sobre el total de clases con detalle registrado para su
+-- inscripción (mismo criterio que ya usa sp_recalcular_contador para
+-- `faltas_general`). El umbral que separa `regular` de `libre` reusa
+-- `umbral_alerta_pct` de `configuraciones`: es el único porcentaje de
+-- inasistencia que existe en el modelo, no hay un parámetro aparte
+-- para "pérdida de regularidad" distinto del de alerta temprana.
+--
+-- Idempotente a propósito: si una inscripción ya tiene fila en
+-- `resultados_finales` (histórico inmutable), esta llamada la deja
+-- intacta y no la recalcula — se puede volver a invocar sin romper
+-- nada si quedó algún alumno sin procesar en una corrida anterior.
+
+CREATE PROCEDURE sp_cerrar_ciclo(IN p_ciclo_lectivo_id INT UNSIGNED)
+BEGIN
+    DECLARE v_umbral_pct       DECIMAL(5,2);
+    DECLARE v_done             INT DEFAULT FALSE;
+    DECLARE v_inscripcion_id   INT UNSIGNED;
+    DECLARE v_faltas_general   DECIMAL(6,2);
+    DECLARE v_total_clases     INT;
+    DECLARE v_pct              DECIMAL(5,2);
+    DECLARE v_condicion        VARCHAR(10);
+
+    DECLARE cur CURSOR FOR
+        SELECT i.id_inscripcion
+          FROM inscripciones i
+         WHERE i.ciclo_lectivo_id = p_ciclo_lectivo_id
+           AND i.estado = 'activo';
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_done = TRUE;
+
+    SELECT umbral_alerta_pct INTO v_umbral_pct
+      FROM configuraciones WHERE id_configuracion = 1;
+
+    OPEN cur;
+    leer_inscripciones: LOOP
+        FETCH cur INTO v_inscripcion_id;
+        IF v_done THEN
+            LEAVE leer_inscripciones;
+        END IF;
+
+        IF NOT EXISTS (
+            SELECT 1 FROM resultados_finales WHERE inscripcion_id = v_inscripcion_id
+        ) THEN
+            SELECT COUNT(*) INTO v_total_clases
+              FROM detalles_asistencia d
+              JOIN planillas_asistencia p ON p.id_planilla = d.planilla_id
+             WHERE d.inscripcion_id = v_inscripcion_id;
+
+            SELECT COALESCE(faltas_general, 0) INTO v_faltas_general
+              FROM contadores_asistencia
+             WHERE inscripcion_id = v_inscripcion_id;
+
+            IF v_total_clases > 0 THEN
+                SET v_pct = (v_faltas_general / v_total_clases) * 100;
+            ELSE
+                SET v_pct = 0;
+            END IF;
+
+            SET v_condicion = IF(v_pct >= v_umbral_pct, 'libre', 'regular');
+
+            INSERT INTO resultados_finales
+                (inscripcion_id, porcentaje_inasistencia, condicion_final, fecha_cierre)
+            VALUES
+                (v_inscripcion_id, v_pct, v_condicion, NOW());
+
+            -- Alerta de asistencia perfecta (RF6, tercer tipo): se evalúa
+            -- acá y no en sp_recalcular_contador porque es un veredicto
+            -- de cierre de ciclo completo, no de cada clase individual.
+            IF v_total_clases > 0 AND v_faltas_general = 0 AND NOT EXISTS (
+                SELECT 1 FROM alertas
+                 WHERE inscripcion_id = v_inscripcion_id
+                   AND tipo = 'asistencia_perfecta' AND estado = 'activa'
+            ) THEN
+                INSERT INTO alertas (inscripcion_id, tipo, fecha_generacion, detalle, estado)
+                VALUES (v_inscripcion_id, 'asistencia_perfecta', NOW(),
+                        'Asistencia perfecta en el ciclo lectivo.', 'activa');
+            END IF;
+        END IF;
+    END LOOP;
+    CLOSE cur;
+
+    UPDATE ciclos_lectivos
+       SET estado = 'cerrado', fecha_cierre = NOW()
+     WHERE id_ciclo_lectivo = p_ciclo_lectivo_id
+       AND estado = 'abierto';
+END;
