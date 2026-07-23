@@ -13,6 +13,8 @@ use App\Http\Controllers\Api\IngresantesController;
 use App\Http\Controllers\Api\GruposEdFisicaController;
 use App\Http\Controllers\Api\GruposTallerController;
 use App\Http\Controllers\Api\DistribucionEspecialidadesController;
+use App\Http\Controllers\Api\RolesController;
+use App\Http\Controllers\Api\UsuariosController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -70,16 +72,35 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/ciclos-lectivos/{ciclo}/ingresantes', [IngresantesController::class, 'crear']);
         Route::post('/ciclos-lectivos/{ciclo}/abrir-siguiente', [AperturaCicloController::class, 'abrir']);
         Route::post('/ciclos-lectivos/{ciclo}/desenlaces/inicializar', [DesenlacesController::class, 'inicializar']);
+
         Route::get('/ciclos-lectivos/{ciclo}/desenlaces', [DesenlacesController::class, 'index']);
         Route::put('/desenlaces/{desenlace}', [DesenlacesController::class, 'actualizar']);
+
         Route::post('/ciclos-lectivos/{ciclo}/grupos-ed-fisica', [GruposEdFisicaController::class, 'crear']);
         Route::get('/ciclos-lectivos/{ciclo}/grupos-ed-fisica', [GruposEdFisicaController::class, 'index']);
+
         Route::post('/grupos-ed-fisica/{grupo}/asignar-lote', [GruposEdFisicaController::class, 'asignarLote']);
+
         Route::post('/ciclos-lectivos/{ciclo}/grupos-taller', [GruposTallerController::class, 'crear']);
         Route::get('/ciclos-lectivos/{ciclo}/grupos-taller', [GruposTallerController::class, 'index']);
+
         Route::post('/grupos-taller/{grupo}/asignar-lote', [GruposTallerController::class, 'asignarLote']);
         Route::post('/ciclos-lectivos/{ciclo}/inscripciones/asignar-especialidad-lote', [DistribucionEspecialidadesController::class, 'asignarLote']);
+
+        Route::post('/roles', [RolesController::class, 'crear']);
+        Route::get('/roles', [RolesController::class, 'index']);
+        Route::put('/roles/{rol}', [RolesController::class, 'actualizar']);
+        Route::delete('/roles/{rol}', [RolesController::class, 'eliminar']);
+        Route::put('/roles/{rol}/permisos', [RolesController::class, 'asignarPermisos']);
+
+        Route::post('/usuarios', [UsuariosController::class, 'crear']);
+        Route::get('/usuarios', [UsuariosController::class, 'index']);
+        Route::put('/usuarios/{usuario}', [UsuariosController::class, 'actualizar']);
+        Route::delete('/usuarios/{usuario}', [UsuariosController::class, 'eliminar']);
+        Route::put('/usuarios/{usuario}/roles', [UsuariosController::class, 'asignarRoles']);
     });
+
+    
 });
 
 // A medida que avancemos módulo por módulo (cursos, alumnos, reportes...)
