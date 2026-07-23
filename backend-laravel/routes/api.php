@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ReportesController;
 use App\Http\Controllers\Api\AperturaCicloController;
 use App\Http\Controllers\Api\IngresantesController;
 use App\Http\Controllers\Api\GruposEdFisicaController;
+use App\Http\Controllers\Api\GruposTallerController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -73,6 +74,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/ciclos-lectivos/{ciclo}/grupos-ed-fisica', [GruposEdFisicaController::class, 'crear']);
         Route::get('/ciclos-lectivos/{ciclo}/grupos-ed-fisica', [GruposEdFisicaController::class, 'index']);
         Route::post('/grupos-ed-fisica/{grupo}/asignar-lote', [GruposEdFisicaController::class, 'asignarLote']);
+        Route::post('/ciclos-lectivos/{ciclo}/grupos-taller', [GruposTallerController::class, 'crear']);
+        Route::get('/ciclos-lectivos/{ciclo}/grupos-taller', [GruposTallerController::class, 'index']);
+        Route::post('/grupos-taller/{grupo}/asignar-lote', [GruposTallerController::class, 'asignarLote']);
     });
 });
 
