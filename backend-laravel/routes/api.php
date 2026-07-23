@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\DesenlacesController;
 use App\Http\Controllers\Api\JustificacionesController;
 use App\Http\Controllers\Api\ReportesController;
 use App\Http\Controllers\Api\AperturaCicloController;
+use App\Http\Controllers\Api\IngresantesController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -63,7 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // DesenlacesController.
     Route::middleware('permiso:gestionar_sistema')->group(function () {
         Route::post('/ciclos-lectivos/{ciclo}/cerrar', [CierreCicloController::class, 'cerrar']);
-        
+        Route::post('/ciclos-lectivos/{ciclo}/ingresantes', [IngresantesController::class, 'crear']);
         Route::post('/ciclos-lectivos/{ciclo}/abrir-siguiente', [AperturaCicloController::class, 'abrir']);
         Route::post('/ciclos-lectivos/{ciclo}/desenlaces/inicializar', [DesenlacesController::class, 'inicializar']);
         Route::get('/ciclos-lectivos/{ciclo}/desenlaces', [DesenlacesController::class, 'index']);
