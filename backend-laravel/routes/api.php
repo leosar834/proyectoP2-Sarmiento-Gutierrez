@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\AperturaCicloController;
 use App\Http\Controllers\Api\IngresantesController;
 use App\Http\Controllers\Api\GruposEdFisicaController;
 use App\Http\Controllers\Api\GruposTallerController;
+use App\Http\Controllers\Api\DistribucionEspecialidadesController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -77,6 +78,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/ciclos-lectivos/{ciclo}/grupos-taller', [GruposTallerController::class, 'crear']);
         Route::get('/ciclos-lectivos/{ciclo}/grupos-taller', [GruposTallerController::class, 'index']);
         Route::post('/grupos-taller/{grupo}/asignar-lote', [GruposTallerController::class, 'asignarLote']);
+        Route::post('/ciclos-lectivos/{ciclo}/inscripciones/asignar-especialidad-lote', [DistribucionEspecialidadesController::class, 'asignarLote']);
     });
 });
 
