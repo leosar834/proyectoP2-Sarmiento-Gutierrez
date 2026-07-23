@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\JustificacionesController;
 use App\Http\Controllers\Api\ReportesController;
 use App\Http\Controllers\Api\AperturaCicloController;
 use App\Http\Controllers\Api\IngresantesController;
+use App\Http\Controllers\Api\GruposEdFisicaController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -69,6 +70,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/ciclos-lectivos/{ciclo}/desenlaces/inicializar', [DesenlacesController::class, 'inicializar']);
         Route::get('/ciclos-lectivos/{ciclo}/desenlaces', [DesenlacesController::class, 'index']);
         Route::put('/desenlaces/{desenlace}', [DesenlacesController::class, 'actualizar']);
+        Route::post('/ciclos-lectivos/{ciclo}/grupos-ed-fisica', [GruposEdFisicaController::class, 'crear']);
+        Route::get('/ciclos-lectivos/{ciclo}/grupos-ed-fisica', [GruposEdFisicaController::class, 'index']);
+        Route::post('/grupos-ed-fisica/{grupo}/asignar-lote', [GruposEdFisicaController::class, 'asignarLote']);
     });
 });
 
