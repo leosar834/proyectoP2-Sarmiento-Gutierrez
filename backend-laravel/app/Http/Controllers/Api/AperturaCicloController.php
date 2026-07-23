@@ -41,6 +41,21 @@ class AperturaCicloController extends Controller
             ]);
         }
 
+        // Solo puede haber un ciclo lectivo abierto a la vez. Este guard,
+        // sumado al de "ciclo debe estar cerrado" de arriba, es lo que
+        // realmente impide reabrir un ciclo ya procesado — cubre incluso
+        // el caso límite (antes sin cubrir) de un ciclo donde TODOS los
+        // desenlaces fueron 'egresa'/'baja', que nunca dejan rastro en
+        // curso_destino_id. Se valida encontrado por testing real: sin
+        // este guard, una segunda apertura de ese ciclo pasaba de largo
+        // y creaba un ciclo lectivo entero duplicado.
+        $yaHayCicloAbierto = CicloLectivo::where('estado', 'abierto')->exists();
+        if ($yaHayCicloAbierto) {
+            throw ValidationException::withMessages([
+                'ciclo' => ['Ya existe un ciclo lectivo abierto — hay que cerrarlo antes de abrir otro.'],
+            ]);
+        }
+
         $inscripcionesActivasSinDesenlace = Inscripcion::where('ciclo_lectivo_id', $cicloAnterior->id_ciclo_lectivo)
             ->where('estado', 'activo')
             ->whereNotIn('id_inscripcion', function ($query) {
@@ -59,13 +74,12 @@ class AperturaCicloController extends Controller
             Inscripcion::where('ciclo_lectivo_id', $cicloAnterior->id_ciclo_lectivo)->select('id_inscripcion')
         )->with(['inscripcion.curso.nivel', 'inscripcion.curso.division', 'inscripcion.alumno'])->get();
 
-        // Este ciclo ya fue procesado por una corrida anterior de esta
-        // misma fase (los desenlaces de promoción/recursada ya tienen
-        // curso de destino asignado) — no reprocesar para no duplicar
-        // inscripciones. No cubre el caso límite de un ciclo donde
-        // TODOS los desenlaces fueron 'egresa'/'baja' (esos nunca
-        // guardan curso_destino_id); se documenta la limitación acá en
-        // vez de sumar una columna nueva solo para esa marca.
+        // Segunda capa de seguridad (defense in depth) para el mismo
+        // caso que ya cubre el guard "ya hay un ciclo abierto" de más
+        // arriba: si por algún motivo ese guard no aplicara (ej. alguien
+        // cierra a mano el ciclo nuevo desde tinker), esto sigue
+        // impidiendo reprocesar un ciclo cuyos desenlaces de
+        // promoción/recursada ya tienen curso de destino asignado.
         if ($desenlaces->contains(fn ($d) => $d->curso_destino_id !== null)) {
             throw ValidationException::withMessages([
                 'ciclo' => ['Este ciclo ya fue abierto anteriormente (ya hay desenlaces con curso de destino asignado).'],
