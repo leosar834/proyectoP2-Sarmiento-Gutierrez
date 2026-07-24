@@ -15,6 +15,9 @@ use App\Http\Controllers\Api\GruposTallerController;
 use App\Http\Controllers\Api\DistribucionEspecialidadesController;
 use App\Http\Controllers\Api\RolesController;
 use App\Http\Controllers\Api\UsuariosController;
+use App\Http\Controllers\Api\NivelesController;
+use App\Http\Controllers\Api\DivisionesController;
+use App\Http\Controllers\Api\EspecialidadesController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -98,6 +101,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/usuarios/{usuario}', [UsuariosController::class, 'actualizar']);
         Route::delete('/usuarios/{usuario}', [UsuariosController::class, 'eliminar']);
         Route::put('/usuarios/{usuario}/roles', [UsuariosController::class, 'asignarRoles']);
+
+        Route::post('/niveles', [NivelesController::class, 'crear']);
+        Route::get('/niveles', [NivelesController::class, 'index']);
+        Route::put('/niveles/{nivel}', [NivelesController::class, 'actualizar']);
+        Route::delete('/niveles/{nivel}', [NivelesController::class, 'eliminar']);
+
+        Route::post('/divisiones', [DivisionesController::class, 'crear']);
+        Route::get('/divisiones', [DivisionesController::class, 'index']);
+        Route::put('/divisiones/{division}', [DivisionesController::class, 'actualizar']);
+        Route::delete('/divisiones/{division}', [DivisionesController::class, 'eliminar']);
+
+        Route::post('/especialidades', [EspecialidadesController::class, 'crear']);
+        Route::get('/especialidades', [EspecialidadesController::class, 'index']);
+        Route::put('/especialidades/{especialidad}', [EspecialidadesController::class, 'actualizar']);
+        Route::delete('/especialidades/{especialidad}', [EspecialidadesController::class, 'eliminar']);
     });
 
     
