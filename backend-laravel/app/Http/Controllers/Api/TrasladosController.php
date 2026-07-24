@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Traslados\DarDeBajaInscripcionRequest;
 use App\Http\Requests\Api\Traslados\TrasladarAlumnoRequest;
 use App\Models\Alumno;
 use App\Models\CicloLectivo;
@@ -15,7 +16,8 @@ use Illuminate\Validation\ValidationException;
 /**
  * Traslados manuales de alumnos (narrativa: "traslados de alumnos a
  * diferentes cursos... para los casos que rompen la regla general, como
- * recursantes, cambios de división o el regreso de egresados").
+ * recursantes, cambios de división o el regreso de egresados"), más la
+ * baja puntual de una inscripción a mitad de año.
  *
  * Los tres casos de la narrativa se resuelven con UNA sola operación,
  * porque estructuralmente son la misma pregunta: "¿este alumno ya tiene
@@ -29,6 +31,12 @@ use Illuminate\Validation\ValidationException;
  * pertenece a un ciclo distinto y ya cerrado), se crea una nueva,
  * respetando la distinción legajo/inscripción de la narrativa: el
  * `Alumno` nunca se toca, lo que se crea es el vínculo nuevo.
+ *
+ * `darDeBaja()` es la operación complementaria: un alumno que abandona a
+ * mitad de año (no en el cierre de ciclo, que es un desenlace de Fase 2)
+ * necesita que SU INSCRIPCIÓN quede en estado `baja`, sin tocar el
+ * legajo — esto es lo que le faltaba a `AlumnosController::eliminar` para
+ * no ser un callejón sin salida cuando el alumno todavía figura activo.
  *
  * Va detrás de `permiso:gestionar_sistema`, igual que el resto de la
  * gestión de alumnos y estructura académica.
@@ -108,6 +116,38 @@ class TrasladosController extends Controller
         ], $resultado['tipo'] === 'inscripcion_nueva' ? 201 : 200);
     }
 
+    /**
+     * Baja de una inscripción puntual a mitad de año — abandono, traslado
+     * a otra institución, etc. Solo aplica sobre una inscripción `activo`
+     * de un ciclo `abierto`; no es un reemplazo del desenlace de Fase 2
+     * (eso opera sobre el ciclo que se está cerrando, antes de generar
+     * las inscripciones nuevas).
+     */
+    public function darDeBaja(DarDeBajaInscripcionRequest $request, Inscripcion $inscripcion): JsonResponse
+    {
+        if ($inscripcion->cicloLectivo->estado !== 'abierto') {
+            throw ValidationException::withMessages([
+                'inscripcion' => ['No se puede modificar una inscripción de un ciclo lectivo cerrado y archivado de solo lectura.'],
+            ]);
+        }
+
+        if ($inscripcion->estado !== 'activo') {
+            throw ValidationException::withMessages([
+                'inscripcion' => ["Esta inscripción ya está en estado '{$inscripcion->estado}' — solo se puede dar de baja una inscripción activa."],
+            ]);
+        }
+
+        $inscripcion->update([
+            'estado' => 'baja',
+            'fecha_baja' => $request->validated('fecha_baja') ?? now()->toDateString(),
+            'motivo_baja' => $request->validated('motivo_baja'),
+        ]);
+
+        return response()->json([
+            'data' => $this->formatear($inscripcion->fresh()->load(['alumno', 'curso.nivel', 'curso.division'])),
+        ]);
+    }
+
     private function formatear(Inscripcion $inscripcion): array
     {
         return [
@@ -122,6 +162,8 @@ class TrasladosController extends Controller
             'especialidad_id' => $inscripcion->especialidad_id,
             'condicion' => $inscripcion->condicion,
             'estado' => $inscripcion->estado,
+            'fecha_baja' => $inscripcion->fecha_baja?->toDateString(),
+            'motivo_baja' => $inscripcion->motivo_baja,
         ];
     }
 }

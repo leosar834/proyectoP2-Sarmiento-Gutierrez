@@ -138,7 +138,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/dias-sin-clases/{diaSinClase}', [DiasSinClasesController::class, 'eliminar']);
 
         Route::get('/alumnos/{alumno}', [AlumnosController::class, 'mostrar']);
+        Route::post('/alumnos', [AlumnosController::class, 'crear']);
+        Route::get('/alumnos', [AlumnosController::class, 'index']);
+        Route::put('/alumnos/{alumno}', [AlumnosController::class, 'actualizar']);
+        Route::delete('/alumnos/{alumno}', [AlumnosController::class, 'eliminar']);
+        
         Route::post('/ciclos-lectivos/{ciclo}/traslados', [TrasladosController::class, 'trasladar']);
+
+        Route::put('/inscripciones/{inscripcion}/dar-de-baja', [TrasladosController::class, 'darDeBaja']);
     });
 
     
