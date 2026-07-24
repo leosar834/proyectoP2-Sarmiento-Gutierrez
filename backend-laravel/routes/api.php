@@ -21,6 +21,8 @@ use App\Http\Controllers\Api\EspecialidadesController;
 use App\Http\Controllers\Api\CursosController;
 use App\Http\Controllers\Api\MateriasTallerController;
 use App\Http\Controllers\Api\DiasSinClasesController;
+use App\Http\Controllers\Api\TrasladosController;
+use App\Http\Controllers\Api\AlumnosController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -134,6 +136,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/ciclos-lectivos/{ciclo}/dias-sin-clases', [DiasSinClasesController::class, 'index']);
         Route::put('/dias-sin-clases/{diaSinClase}', [DiasSinClasesController::class, 'actualizar']);
         Route::delete('/dias-sin-clases/{diaSinClase}', [DiasSinClasesController::class, 'eliminar']);
+
+        Route::get('/alumnos/{alumno}', [AlumnosController::class, 'mostrar']);
+        Route::post('/ciclos-lectivos/{ciclo}/traslados', [TrasladosController::class, 'trasladar']);
     });
 
     
