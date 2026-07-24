@@ -18,6 +18,8 @@ use App\Http\Controllers\Api\UsuariosController;
 use App\Http\Controllers\Api\NivelesController;
 use App\Http\Controllers\Api\DivisionesController;
 use App\Http\Controllers\Api\EspecialidadesController;
+use App\Http\Controllers\Api\CursosController;
+use App\Http\Controllers\Api\MateriasTallerController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -89,6 +91,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('/grupos-taller/{grupo}/asignar-lote', [GruposTallerController::class, 'asignarLote']);
         Route::post('/ciclos-lectivos/{ciclo}/inscripciones/asignar-especialidad-lote', [DistribucionEspecialidadesController::class, 'asignarLote']);
+
+        Route::post('/ciclos-lectivos/{ciclo}/cursos', [CursosController::class, 'crear']);
+        Route::get('/ciclos-lectivos/{ciclo}/cursos', [CursosController::class, 'index']);
+        Route::put('/cursos/{curso}', [CursosController::class, 'actualizar']);
+        Route::delete('/cursos/{curso}', [CursosController::class, 'eliminar']);
+
+        Route::post('/materias-taller', [MateriasTallerController::class, 'crear']);
+        Route::get('/materias-taller', [MateriasTallerController::class, 'index']);
+        Route::put('/materias-taller/{materiaTaller}', [MateriasTallerController::class, 'actualizar']);
+        Route::delete('/materias-taller/{materiaTaller}', [MateriasTallerController::class, 'eliminar']);
 
         Route::post('/roles', [RolesController::class, 'crear']);
         Route::get('/roles', [RolesController::class, 'index']);
