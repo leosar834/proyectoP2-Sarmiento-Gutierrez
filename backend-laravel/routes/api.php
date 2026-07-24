@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\DivisionesController;
 use App\Http\Controllers\Api\EspecialidadesController;
 use App\Http\Controllers\Api\CursosController;
 use App\Http\Controllers\Api\MateriasTallerController;
+use App\Http\Controllers\Api\DiasSinClasesController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -128,6 +129,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/especialidades', [EspecialidadesController::class, 'index']);
         Route::put('/especialidades/{especialidad}', [EspecialidadesController::class, 'actualizar']);
         Route::delete('/especialidades/{especialidad}', [EspecialidadesController::class, 'eliminar']);
+
+        Route::post('/ciclos-lectivos/{ciclo}/dias-sin-clases', [DiasSinClasesController::class, 'crear']);
+        Route::get('/ciclos-lectivos/{ciclo}/dias-sin-clases', [DiasSinClasesController::class, 'index']);
+        Route::put('/dias-sin-clases/{diaSinClase}', [DiasSinClasesController::class, 'actualizar']);
+        Route::delete('/dias-sin-clases/{diaSinClase}', [DiasSinClasesController::class, 'eliminar']);
     });
 
     

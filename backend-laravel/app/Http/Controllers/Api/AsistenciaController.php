@@ -8,7 +8,11 @@ use App\Http\Requests\Api\Asistencia\CrearPlanillaRequest;
 use App\Http\Requests\Api\Asistencia\GuardarDetallesRequest;
 use App\Http\Resources\DetalleAsistenciaResource;
 use App\Http\Resources\PlanillaAsistenciaResource;
+use App\Models\Curso;
 use App\Models\DetalleAsistencia;
+use App\Models\DiaSinClase;
+use App\Models\GrupoEdFisica;
+use App\Models\GrupoTaller;
 use App\Models\PermisoDiario;
 use App\Models\PlanillaAsistencia;
 use App\Models\Usuario;
@@ -48,6 +52,13 @@ class AsistenciaController extends Controller
         if (! PermisoDiario::estaVigenteHoy()) {
             throw ValidationException::withMessages([
                 'fecha' => ['No hay un permiso diario abierto para tomar asistencia hoy.'],
+            ]);
+        }
+
+        $diaSinClases = $this->buscarDiaSinClasesHoy($datos['area'], $datos);
+        if ($diaSinClases !== null) {
+            throw ValidationException::withMessages([
+                'fecha' => ["Hoy es un día sin clases ({$diaSinClases->motivo}) — no se puede abrir la planilla."],
             ]);
         }
 
@@ -130,7 +141,7 @@ class AsistenciaController extends Controller
             );
         }
 
-        return (new PlanillaAsistenciaResource($planilla->load('detalles.inscripcion.alumno')))->response();
+        return new PlanillaAsistenciaResource($planilla->load('detalles.inscripcion.alumno'));
     }
 
     /**
@@ -173,7 +184,7 @@ class AsistenciaController extends Controller
 
         $planilla->update(['estado' => 'bloqueada', 'hora_confirmacion' => now()]);
 
-        return (new PlanillaAsistenciaResource($planilla->load('detalles.inscripcion.alumno')))->response();
+        return new PlanillaAsistenciaResource($planilla->load('detalles.inscripcion.alumno'));
     }
 
     /**
@@ -196,6 +207,47 @@ class AsistenciaController extends Controller
 
         return (new DetalleAsistenciaResource($detalle->load('inscripcion.alumno')))
             ->response();
+    }
+
+    /**
+     * Calendario escolar (RF1/estructura académica): si hoy está
+     * declarado como día sin clases para el ciclo/turno de este
+     * curso o grupo, no se deja abrir la planilla — es lo que hace
+     * cierto el supuesto de `sp_recalcular_contador` en la base ("los
+     * días sin clases quedan excluidos por construcción" de
+     * `total_clases`).
+     *
+     * Limitación documentada a propósito: `alcance` puede acotar el
+     * feriado a un turno puntual ('mañana'/'tarde'/'noche'), pero solo
+     * `Curso` tiene columna `turno` — `GrupoTaller` y `GrupoEdFisica`
+     * no. Para área taller/ed_fisica solo se puede chequear contra
+     * `alcance = 'todos'` (día completo); un día sin clases acotado a un
+     * turno puntual no tiene cómo aplicarse a esas dos áreas porque no
+     * existe el dato con el que compararlo.
+     */
+    private function buscarDiaSinClasesHoy(string $area, array $datos): ?DiaSinClase
+    {
+        [$cicloLectivoId, $turno] = match ($area) {
+            'teorica' => (function () use ($datos) {
+                $curso = Curso::find($datos['curso_id'] ?? null);
+
+                return [$curso?->ciclo_lectivo_id, $curso?->turno];
+            })(),
+            'taller' => [GrupoTaller::find($datos['grupo_taller_id'] ?? null)?->ciclo_lectivo_id, null],
+            'ed_fisica' => [GrupoEdFisica::find($datos['grupo_ed_fisica_id'] ?? null)?->ciclo_lectivo_id, null],
+            default => [null, null],
+        };
+
+        if ($cicloLectivoId === null) {
+            return null;
+        }
+
+        $alcancesAplicables = $turno !== null ? ['todos', $turno] : ['todos'];
+
+        return DiaSinClase::where('ciclo_lectivo_id', $cicloLectivoId)
+            ->whereDate('fecha', now()->toDateString())
+            ->whereIn('alcance', $alcancesAplicables)
+            ->first();
     }
 
     private function usuarioPuedeOperar(Usuario $usuario, PlanillaAsistencia $planilla): bool
