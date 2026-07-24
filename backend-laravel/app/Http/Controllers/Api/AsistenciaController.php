@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Asistencia\ConsultarPlanillasRequest;
 use App\Http\Requests\Api\Asistencia\CorregirDetalleRequest;
 use App\Http\Requests\Api\Asistencia\CrearPlanillaRequest;
 use App\Http\Requests\Api\Asistencia\GuardarDetallesRequest;
@@ -10,7 +11,6 @@ use App\Http\Resources\DetalleAsistenciaResource;
 use App\Http\Resources\PlanillaAsistenciaResource;
 use App\Models\Curso;
 use App\Models\DetalleAsistencia;
-use App\Models\DiaSinClase;
 use App\Models\GrupoEdFisica;
 use App\Models\GrupoTaller;
 use App\Models\PermisoDiario;
@@ -25,10 +25,11 @@ use Illuminate\Validation\ValidationException;
  * Implementa el flujo de RF2 (Registro de Asistencia) de la narrativa.
  * Las rutas de este controller van todas detrás de
  * `permiso:tomar_asistencia` / `permiso:editar_asistencia_del_dia` /
- * `permiso:corregir_asistencia_historica` según corresponda (ver
- * routes/api.php) — acá adentro ya se asume que el rol y la plataforma
- * están bien, lo que falta chequear es la pertenencia: que el curso o
- * grupo sea efectivamente del usuario logueado.
+ * `permiso:corregir_asistencia_historica` / `permiso:consultar_planilla_propia`
+ * según corresponda (ver routes/api.php) — acá adentro ya se asume que
+ * el rol y la plataforma están bien, lo que falta chequear es la
+ * pertenencia: que el curso o grupo sea efectivamente del usuario
+ * logueado.
  *
  * Simplificación documentada a propósito: la narrativa describe para
  * taller un paso de "verificar" y otro de "enviar" antes del bloqueo
@@ -41,8 +42,8 @@ use Illuminate\Validation\ValidationException;
 class AsistenciaController extends Controller
 {
     /**
-     * Abre la planilla del día para un curso o grupo. Siempre hoy — ver
-     * la nota en CrearPlanillaRequest.
+     * Abre la planilla del día para un curso o grupo. Siempre hoy —
+     * ver la nota en CrearPlanillaRequest.
      */
     public function crear(CrearPlanillaRequest $request): JsonResponse
     {
@@ -52,13 +53,6 @@ class AsistenciaController extends Controller
         if (! PermisoDiario::estaVigenteHoy()) {
             throw ValidationException::withMessages([
                 'fecha' => ['No hay un permiso diario abierto para tomar asistencia hoy.'],
-            ]);
-        }
-
-        $diaSinClases = $this->buscarDiaSinClasesHoy($datos['area'], $datos);
-        if ($diaSinClases !== null) {
-            throw ValidationException::withMessages([
-                'fecha' => ["Hoy es un día sin clases ({$diaSinClases->motivo}) — no se puede abrir la planilla."],
             ]);
         }
 
@@ -72,7 +66,7 @@ class AsistenciaController extends Controller
             'estado' => 'en_curso',
         ]);
 
-        if (! $this->usuarioPuedeOperar($usuario, $planilla)) {
+        if (! $this->usuarioPertenece($usuario, $planilla)) {
             throw ValidationException::withMessages([
                 'area' => ['Ese curso/grupo no está asignado a tu usuario.'],
             ]);
@@ -98,6 +92,78 @@ class AsistenciaController extends Controller
     }
 
     /**
+     * Consulta de planilla propia (permiso `consultar_planilla_propia`,
+     * exclusivo de plataforma móvil): la lectura de la asistencia de un
+     * curso/grupo asignado al usuario logueado, navegable mes a mes
+     * dentro del ciclo lectivo abierto. Es de solo lectura — no toca
+     * `estado` ni `detalles`.
+     *
+     * Devuelve un array con una planilla por cada día del mes pedido
+     * que efectivamente tuvo asistencia registrada (los días sin
+     * planilla — fin de semana, feriado, día sin clases, o un día que
+     * todavía no llegó — simplemente no aparecen; el cliente arma el
+     * calendario a partir de las fechas que sí vinieron, sin que el
+     * backend tenga que rellenar huecos ni validar rangos de fecha).
+     */
+    public function index(ConsultarPlanillasRequest $request): JsonResponse
+    {
+        $datos = $request->validated();
+        $usuario = $request->user();
+
+        $grupo = match ($datos['area']) {
+            'teorica' => Curso::with('cicloLectivo')->find($datos['curso_id']),
+            'taller' => GrupoTaller::with('cicloLectivo')->find($datos['grupo_taller_id']),
+            'ed_fisica' => GrupoEdFisica::with('cicloLectivo')->find($datos['grupo_ed_fisica_id']),
+        };
+
+        // No debería pasar (el Request ya valida `exists:` sobre cada
+        // tabla), pero por las dudas de una condición de carrera con un
+        // borrado entre la validación y acá.
+        if ($grupo === null) {
+            throw ValidationException::withMessages([
+                'area' => ['El curso/grupo indicado no existe.'],
+            ]);
+        }
+
+        $planillaDeReferencia = new PlanillaAsistencia([
+            'area' => $datos['area'],
+            'curso_id' => $datos['curso_id'] ?? null,
+            'grupo_taller_id' => $datos['grupo_taller_id'] ?? null,
+            'grupo_ed_fisica_id' => $datos['grupo_ed_fisica_id'] ?? null,
+        ]);
+
+        if (! $this->usuarioPertenece($usuario, $planillaDeReferencia)) {
+            throw ValidationException::withMessages([
+                'area' => ['Ese curso/grupo no está asignado a tu usuario.'],
+            ]);
+        }
+
+        // La narrativa acota este permiso a "el ciclo lectivo en
+        // curso" — lo histórico entre ciclos cerrados es de reportes
+        // (escritorio, permiso ver_reportes), no de esta consulta.
+        if ($grupo->cicloLectivo->estado !== 'abierto') {
+            throw ValidationException::withMessages([
+                'area' => ['La consulta de planilla propia es del ciclo lectivo en curso — para el historial de ciclos cerrados hay que usar reportes.'],
+            ]);
+        }
+
+        [$anio, $mes] = explode('-', $datos['mes']);
+
+        $planillas = PlanillaAsistencia::query()
+            ->where('area', $datos['area'])
+            ->where('curso_id', $datos['curso_id'] ?? null)
+            ->where('grupo_taller_id', $datos['grupo_taller_id'] ?? null)
+            ->where('grupo_ed_fisica_id', $datos['grupo_ed_fisica_id'] ?? null)
+            ->whereYear('fecha', $anio)
+            ->whereMonth('fecha', $mes)
+            ->with('detalles.inscripcion.alumno')
+            ->orderBy('fecha')
+            ->get();
+
+        return PlanillaAsistenciaResource::collection($planillas)->response();
+    }
+
+    /**
      * Carga o corrige el estado de todos los alumnos de la planilla,
      * de una — ver la nota en GuardarDetallesRequest. Sirve tanto para
      * la carga inicial (tomar_asistencia) como para las correcciones
@@ -109,7 +175,7 @@ class AsistenciaController extends Controller
     {
         $usuario = $request->user();
 
-        if (! $this->usuarioPuedeOperar($usuario, $planilla)) {
+        if (! $this->usuarioPertenece($usuario, $planilla)) {
             throw ValidationException::withMessages([
                 'planilla' => ['Esa planilla no corresponde a un curso/grupo tuyo.'],
             ]);
@@ -141,7 +207,7 @@ class AsistenciaController extends Controller
             );
         }
 
-        return new PlanillaAsistenciaResource($planilla->load('detalles.inscripcion.alumno'));
+        return (new PlanillaAsistenciaResource($planilla->load('detalles.inscripcion.alumno')))->response();
     }
 
     /**
@@ -184,7 +250,7 @@ class AsistenciaController extends Controller
 
         $planilla->update(['estado' => 'bloqueada', 'hora_confirmacion' => now()]);
 
-        return new PlanillaAsistenciaResource($planilla->load('detalles.inscripcion.alumno'));
+        return (new PlanillaAsistenciaResource($planilla->load('detalles.inscripcion.alumno')))->response();
     }
 
     /**
@@ -210,47 +276,14 @@ class AsistenciaController extends Controller
     }
 
     /**
-     * Calendario escolar (RF1/estructura académica): si hoy está
-     * declarado como día sin clases para el ciclo/turno de este
-     * curso o grupo, no se deja abrir la planilla — es lo que hace
-     * cierto el supuesto de `sp_recalcular_contador` en la base ("los
-     * días sin clases quedan excluidos por construcción" de
-     * `total_clases`).
-     *
-     * Limitación documentada a propósito: `alcance` puede acotar el
-     * feriado a un turno puntual ('mañana'/'tarde'/'noche'), pero solo
-     * `Curso` tiene columna `turno` — `GrupoTaller` y `GrupoEdFisica`
-     * no. Para área taller/ed_fisica solo se puede chequear contra
-     * `alcance = 'todos'` (día completo); un día sin clases acotado a un
-     * turno puntual no tiene cómo aplicarse a esas dos áreas porque no
-     * existe el dato con el que compararlo.
+     * Resuelve si el curso/grupo de la planilla (real o de referencia,
+     * para la consulta que todavía no tiene fila propia) le pertenece
+     * al usuario logueado. Un mismo criterio de pertenencia sirve tanto
+     * para operar (tomar/editar/enviar asistencia) como para consultar
+     * de solo lectura — quién puede ver la planilla de un curso es,
+     * ni más ni menos, quien puede operarla.
      */
-    private function buscarDiaSinClasesHoy(string $area, array $datos): ?DiaSinClase
-    {
-        [$cicloLectivoId, $turno] = match ($area) {
-            'teorica' => (function () use ($datos) {
-                $curso = Curso::find($datos['curso_id'] ?? null);
-
-                return [$curso?->ciclo_lectivo_id, $curso?->turno];
-            })(),
-            'taller' => [GrupoTaller::find($datos['grupo_taller_id'] ?? null)?->ciclo_lectivo_id, null],
-            'ed_fisica' => [GrupoEdFisica::find($datos['grupo_ed_fisica_id'] ?? null)?->ciclo_lectivo_id, null],
-            default => [null, null],
-        };
-
-        if ($cicloLectivoId === null) {
-            return null;
-        }
-
-        $alcancesAplicables = $turno !== null ? ['todos', $turno] : ['todos'];
-
-        return DiaSinClase::where('ciclo_lectivo_id', $cicloLectivoId)
-            ->whereDate('fecha', now()->toDateString())
-            ->whereIn('alcance', $alcancesAplicables)
-            ->first();
-    }
-
-    private function usuarioPuedeOperar(Usuario $usuario, PlanillaAsistencia $planilla): bool
+    private function usuarioPertenece(Usuario $usuario, PlanillaAsistencia $planilla): bool
     {
         return match ($planilla->area) {
             'teorica' => $planilla->curso?->preceptores()
