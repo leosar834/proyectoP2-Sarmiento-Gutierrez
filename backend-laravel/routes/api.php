@@ -110,6 +110,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/ciclos-lectivos/{ciclo}/grupos-ed-fisica', [GruposEdFisicaController::class, 'index']);
         Route::put('/grupos-ed-fisica/{grupo}', [GruposEdFisicaController::class, 'actualizar']);
         Route::delete('/grupos-ed-fisica/{grupo}', [GruposEdFisicaController::class, 'eliminar']);
+        Route::patch('/grupos-ed-fisica/{grupo}/restaurar', [GruposEdFisicaController::class, 'restaurar']);
 
         Route::post('/grupos-ed-fisica/{grupo}/asignar-lote', [GruposEdFisicaController::class, 'asignarLote']);
 
@@ -117,6 +118,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/ciclos-lectivos/{ciclo}/grupos-taller', [GruposTallerController::class, 'index']);
         Route::put('/grupos-taller/{grupo}', [GruposTallerController::class, 'actualizar']);
         Route::delete('/grupos-taller/{grupo}', [GruposTallerController::class, 'eliminar']);
+        Route::patch('/grupos-taller/{grupo}/restaurar', [GruposTallerController::class, 'restaurar']);
 
         Route::post('/grupos-taller/{grupo}/asignar-lote', [GruposTallerController::class, 'asignarLote']);
         Route::post('/ciclos-lectivos/{ciclo}/inscripciones/asignar-especialidad-lote', [DistribucionEspecialidadesController::class, 'asignarLote']);
@@ -131,6 +133,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/materias-taller', [MateriasTallerController::class, 'index']);
         Route::put('/materias-taller/{materiaTaller}', [MateriasTallerController::class, 'actualizar']);
         Route::delete('/materias-taller/{materiaTaller}', [MateriasTallerController::class, 'eliminar']);
+        Route::patch('/materias-taller/{materiaTaller}/restaurar', [MateriasTallerController::class, 'restaurar']);
 
         Route::post('/roles', [RolesController::class, 'crear']);
         Route::get('/roles', [RolesController::class, 'index']);

@@ -231,6 +231,33 @@ class GruposTallerController extends Controller
         ]);
     }
 
+    /**
+     * Restaura un grupo de taller dado de baja — ver el razonamiento en
+     * `UsuariosController::restaurar()`. Con guard de ciclo, mismo
+     * criterio que `actualizar()`/`eliminar()` en este mismo
+     * controller: un grupo de taller es estructura de un ciclo puntual.
+     */
+    public function restaurar(int $grupo): JsonResponse
+    {
+        $grupoModel = GrupoTaller::withTrashed()->findOrFail($grupo);
+
+        if (! $grupoModel->trashed()) {
+            throw ValidationException::withMessages([
+                'grupo' => ['Este grupo de taller no está dado de baja — no hay nada que restaurar.'],
+            ]);
+        }
+
+        if ($grupoModel->cicloLectivo->estado !== 'abierto') {
+            throw ValidationException::withMessages([
+                'grupo' => ['No se puede restaurar un grupo de un ciclo lectivo cerrado y archivado de solo lectura.'],
+            ]);
+        }
+
+        $grupoModel->restore();
+
+        return response()->json(['data' => $this->formatearGrupo($grupoModel->fresh())]);
+    }
+
     private function formatearGrupo(GrupoTaller $grupo): array
     {
         return [

@@ -73,6 +73,27 @@ class MateriasTallerController extends Controller
         return response()->json(['data' => ['id_materia_taller' => $materiaTaller->id_materia_taller, 'eliminado' => true]]);
     }
 
+    /**
+     * Restaura una materia/taller dada de baja — ver el razonamiento en
+     * `UsuariosController::restaurar()`. Sin guard de ciclo: igual que
+     * `Especialidad`, es un dato permanente que no cuelga de ningún
+     * ciclo lectivo puntual (ver el docblock de esta clase).
+     */
+    public function restaurar(int $materiaTaller): JsonResponse
+    {
+        $materiaTallerModel = MateriaTaller::withTrashed()->findOrFail($materiaTaller);
+
+        if (! $materiaTallerModel->trashed()) {
+            throw ValidationException::withMessages([
+                'materia_taller' => ['Esta materia/taller no está dada de baja — no hay nada que restaurar.'],
+            ]);
+        }
+
+        $materiaTallerModel->restore();
+
+        return response()->json(['data' => $this->formatear($materiaTallerModel->fresh('especialidad'))]);
+    }
+
     private function formatear(MateriaTaller $materiaTaller): array
     {
         return [

@@ -210,6 +210,33 @@ class GruposEdFisicaController extends Controller
         return response()->json(['data' => $this->formatearGrupo($grupo->fresh())]);
     }
 
+    /**
+     * Restaura un grupo de ed. física dado de baja — ver el
+     * razonamiento en `UsuariosController::restaurar()`. Con guard de
+     * ciclo, mismo criterio que `actualizar()`/`eliminar()` en este
+     * mismo controller.
+     */
+    public function restaurar(int $grupo): JsonResponse
+    {
+        $grupoModel = GrupoEdFisica::withTrashed()->findOrFail($grupo);
+
+        if (! $grupoModel->trashed()) {
+            throw ValidationException::withMessages([
+                'grupo' => ['Este grupo de ed. física no está dado de baja — no hay nada que restaurar.'],
+            ]);
+        }
+
+        if ($grupoModel->cicloLectivo->estado !== 'abierto') {
+            throw ValidationException::withMessages([
+                'grupo' => ['No se puede restaurar un grupo de un ciclo lectivo cerrado y archivado de solo lectura.'],
+            ]);
+        }
+
+        $grupoModel->restore();
+
+        return response()->json(['data' => $this->formatearGrupo($grupoModel->fresh())]);
+    }
+
     private function formatearGrupo(GrupoEdFisica $grupo): array
     {
         return [
