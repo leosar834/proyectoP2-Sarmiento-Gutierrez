@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exports\EstadisticasAlumnoExport;
 use App\Exports\FaltasPorCursoExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Reportes\FaltasPorCursoRequest;
@@ -19,7 +20,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 /**
  * Implementa RF7 (Reportes y Estadísticas): dos vistas en JSON
  * (`faltasPorCurso`, `estadisticasAlumno`) para un futuro cliente
- * Flutter, y la exportación a `.xlsx` de la primera — "el formato de
+ * Flutter, y la exportación a `.xlsx` de ambas — "el formato de
  * exportación principal es Excel", según la narrativa.
  *
  * Ninguna de las respuestas JSON envuelve un modelo Eloquent 1:1 (son
@@ -89,6 +90,37 @@ class ReportesController extends Controller
      */
     public function estadisticasAlumno(Request $request, Inscripcion $inscripcion): JsonResponse
     {
+        return response()->json(['data' => $this->datosEstadisticasAlumno($inscripcion)]);
+    }
+
+    /**
+     * Mismo reporte que `estadisticasAlumno()`, en .xlsx — tres hojas
+     * (Resumen, Tardanzas, Justificaciones) porque, a diferencia del
+     * reporte de faltas por curso, acá los tres bloques no comparten
+     * columnas y no tiene sentido forzarlos en una sola tabla.
+     */
+    public function exportarEstadisticasAlumno(Request $request, Inscripcion $inscripcion): BinaryFileResponse
+    {
+        $datos = $this->datosEstadisticasAlumno($inscripcion);
+
+        $nombreArchivo = sprintf(
+            'estadisticas_%s_%s.xlsx',
+            $datos['alumno']['apellido'],
+            $datos['alumno']['dni']
+        );
+
+        return Excel::download(new EstadisticasAlumnoExport($datos), $nombreArchivo);
+    }
+
+    /**
+     * Compartido entre `estadisticasAlumno()` (JSON) y
+     * `exportarEstadisticasAlumno()` (.xlsx) para no calcular esto dos
+     * veces con el riesgo de que se desincronicen — mismo criterio que
+     * ya se usa con `alumnosConFaltas()` para el reporte de faltas por
+     * curso.
+     */
+    private function datosEstadisticasAlumno(Inscripcion $inscripcion): array
+    {
         $inscripcion->load(['alumno', 'curso.nivel', 'curso.division']);
 
         $contador = DB::table('contadores_asistencia')
@@ -118,27 +150,25 @@ class ReportesController extends Controller
                 'estado_notificacion',
             ]);
 
-        return response()->json([
-            'data' => [
-                'alumno' => [
-                    'id_alumno' => $inscripcion->alumno->id_alumno,
-                    'nombre' => $inscripcion->alumno->nombre,
-                    'apellido' => $inscripcion->alumno->apellido,
-                    'dni' => $inscripcion->alumno->dni,
-                    'curso' => "{$inscripcion->curso->nivel->nombre} {$inscripcion->curso->division->nombre}",
-                ],
-                'contador_general' => $contador ? [
-                    'faltas_teoricas' => $contador->faltas_teoricas,
-                    'faltas_taller' => $contador->faltas_taller,
-                    'faltas_ed_fisica' => $contador->faltas_ed_fisica,
-                    'faltas_general' => $contador->faltas_general,
-                    'tardanzas_global' => $contador->tardanzas_global,
-                    'justificaciones_total' => $contador->justificaciones_total,
-                ] : null,
-                'historial_tardanzas' => $tardanzas,
-                'historial_justificaciones' => $justificaciones,
+        return [
+            'alumno' => [
+                'id_alumno' => $inscripcion->alumno->id_alumno,
+                'nombre' => $inscripcion->alumno->nombre,
+                'apellido' => $inscripcion->alumno->apellido,
+                'dni' => $inscripcion->alumno->dni,
+                'curso' => "{$inscripcion->curso->nivel->nombre} {$inscripcion->curso->division->nombre}",
             ],
-        ]);
+            'contador_general' => $contador ? [
+                'faltas_teoricas' => $contador->faltas_teoricas,
+                'faltas_taller' => $contador->faltas_taller,
+                'faltas_ed_fisica' => $contador->faltas_ed_fisica,
+                'faltas_general' => $contador->faltas_general,
+                'tardanzas_global' => $contador->tardanzas_global,
+                'justificaciones_total' => $contador->justificaciones_total,
+            ] : null,
+            'historial_tardanzas' => $tardanzas,
+            'historial_justificaciones' => $justificaciones,
+        ];
     }
 
     /**

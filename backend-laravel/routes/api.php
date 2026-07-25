@@ -32,7 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::middleware('permiso:consultar_planilla_propia')
     ->get('/planillas', [AsistenciaController::class, 'index']);
-    
+
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 
@@ -74,6 +74,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reportes/faltas-por-curso', [ReportesController::class, 'faltasPorCurso']);
         Route::get('/reportes/faltas-por-curso/exportar', [ReportesController::class, 'exportarFaltasPorCurso']);
         Route::get('/reportes/alumnos/{inscripcion}/estadisticas', [ReportesController::class, 'estadisticasAlumno']);
+        Route::get('/reportes/alumnos/{inscripcion}/estadisticas/exportar', [ReportesController::class, 'exportarEstadisticasAlumno']);
     });
 
     // Proceso de Cierre y Apertura en Cuatro Fases. Fase 1 (cierre) y
