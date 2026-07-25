@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\GruposEdFisica\AsignarLoteEdFisicaRequest;
+use App\Http\Requests\Api\GruposEdFisica\AsignarProfesorGrupoEdFisicaRequest;
 use App\Http\Requests\Api\GruposEdFisica\CrearGrupoEdFisicaRequest;
 use App\Models\CicloLectivo;
 use App\Models\GrupoEdFisica;
@@ -21,10 +22,10 @@ use Illuminate\Validation\ValidationException;
  * año ... con herramientas de asignación por lote —asignar grupos
  * completos, filtrar por especialidad o por división—".
  *
- * Grupos de taller quedan para un commit aparte (mismo patrón general,
- * tabla y reglas distintas) — se arrancó por educación física por ser
- * más simple: un solo profesor fijo por grupo, sin depender de
- * materia_taller_id/especialidad como sí depende taller.
+ * También cubre RF1 ("Asignar un profesor a cada grupo de educación
+ * física") vía `asignarProfesor()`, para reasignar el profesor de un
+ * grupo ya creado — la asignación inicial ya la exige `crear()`
+ * (`profesor_id` obligatorio, columna NOT NULL).
  *
  * Va detrás de `permiso:gestionar_sistema`, igual que el resto de la
  * gestión de la estructura académica (cursos, desenlaces, ingresantes).
@@ -140,6 +141,25 @@ class GruposEdFisicaController extends Controller
                 'asignados' => $asignados,
             ],
         ]);
+    }
+
+    /**
+     * Narrativa RF1: "Asignar un profesor a cada grupo de educación
+     * física". Reasigna el profesor de un grupo ya existente (cambio a
+     * mitad de año) — no hay caso de "vacío": la columna es NOT NULL,
+     * un grupo de ed. física siempre tiene exactamente un profesor.
+     */
+    public function asignarProfesor(AsignarProfesorGrupoEdFisicaRequest $request, GrupoEdFisica $grupo): JsonResponse
+    {
+        if ($grupo->cicloLectivo->estado !== 'abierto') {
+            throw ValidationException::withMessages([
+                'grupo' => ['No se puede modificar el profesor de un grupo de un ciclo lectivo cerrado y archivado de solo lectura.'],
+            ]);
+        }
+
+        $grupo->update(['profesor_id' => $request->validated('profesor_id')]);
+
+        return response()->json(['data' => $this->formatearGrupo($grupo->fresh())]);
     }
 
     private function formatearGrupo(GrupoEdFisica $grupo): array

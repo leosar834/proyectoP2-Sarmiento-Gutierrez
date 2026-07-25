@@ -16,10 +16,13 @@ use Illuminate\Validation\ValidationException;
  * controller solo valida que el ciclo no esté ya cerrado, invoca el
  * procedimiento y devuelve el resultado.
  *
- * Las fases 2 a 4 (definir desenlaces, clonar estructura y generar
- * inscripciones, población manual) quedan para más adelante — la
- * propia narrativa las separa a propósito, porque requieren decisión
- * humana entre cada una.
+ * Las cuatro fases ya están completas: Fase 2 (definir desenlaces) en
+ * `DesenlacesController`, Fase 3 (clonar estructura y generar
+ * inscripciones) en `AperturaCicloController`, y Fase 4 (población
+ * manual) repartida entre `IngresantesController`, `GruposTallerController`,
+ * `GruposEdFisicaController` y `DistribucionEspecialidadesController` —
+ * la propia narrativa las separa a propósito en controllers/pasos
+ * distintos, porque requieren decisión humana entre cada una.
  */
 class CierreCicloController extends Controller
 {

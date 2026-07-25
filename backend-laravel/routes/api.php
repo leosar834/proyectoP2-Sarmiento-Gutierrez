@@ -77,9 +77,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reportes/alumnos/{inscripcion}/estadisticas/exportar', [ReportesController::class, 'exportarEstadisticasAlumno']);
     });
 
-    // Proceso de Cierre y Apertura en Cuatro Fases. Fase 1 (cierre) y
-    // Fase 2 (desenlaces) por ahora — ver CierreCicloController y
-    // DesenlacesController.
+    // Proceso de Cierre y Apertura en Cuatro Fases (completo): Fase 1
+    // (cierre) en CierreCicloController, Fase 2 (desenlaces) en
+    // DesenlacesController, Fase 3 (apertura y generación de
+    // inscripciones) en AperturaCicloController, Fase 4 (población
+    // manual) en IngresantesController + GruposTallerController +
+    // GruposEdFisicaController + DistribucionEspecialidadesController.
     Route::middleware('permiso:gestionar_sistema')->group(function () {
         Route::post('/ciclos-lectivos/{ciclo}/cerrar', [CierreCicloController::class, 'cerrar']);
         Route::post('/ciclos-lectivos/{ciclo}/ingresantes', [IngresantesController::class, 'crear']);
@@ -151,6 +154,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/ciclos-lectivos/{ciclo}/traslados', [TrasladosController::class, 'trasladar']);
 
         Route::put('/inscripciones/{inscripcion}/dar-de-baja', [TrasladosController::class, 'darDeBaja']);
+
+        Route::put('/cursos/{curso}/preceptores', [CursosController::class, 'asignarPreceptores']);
+        
+        Route::put('/grupos-taller/{grupo}/usuarios', [GruposTallerController::class, 'asignarUsuarios']);
+        
+        Route::put('/grupos-ed-fisica/{grupo}/profesor', [GruposEdFisicaController::class, 'asignarProfesor']);
     });
 
     

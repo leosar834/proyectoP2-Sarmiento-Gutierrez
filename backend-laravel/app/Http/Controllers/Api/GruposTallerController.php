@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\GruposTaller\AsignarLoteTallerRequest;
+use App\Http\Requests\Api\GruposTaller\AsignarUsuariosGrupoTallerRequest;
 use App\Http\Requests\Api\GruposTaller\CrearGrupoTallerRequest;
 use App\Models\CicloLectivo;
 use App\Models\GrupoTaller;
@@ -20,6 +21,10 @@ use Illuminate\Validation\ValidationException;
  * del ciclo), y un alumno puede estar en varios grupos de taller a la
  * vez (uno por cada materia que cursa), a diferencia de educación
  * física donde solo puede estar en uno.
+ *
+ * También cubre RF1 ("Asignar uno o más profesores de taller..." /
+ * "...preceptores de taller a cada curso y grupo de taller") vía
+ * `asignarUsuarios()`.
  *
  * Va detrás de `permiso:gestionar_sistema`, igual que el resto de la
  * gestión de la estructura académica.
@@ -139,6 +144,42 @@ class GruposTallerController extends Controller
             'data' => [
                 'grupo_taller_id' => $grupo->id_grupo_taller,
                 'asignados' => $asignados,
+            ],
+        ]);
+    }
+
+    /**
+     * Narrativa RF1: "Asignar uno o más profesores de taller a cada
+     * curso y grupo de taller" + "...preceptores de taller...". Ambos
+     * roles viven en la misma tabla puente (`usuarios_grupos_taller`,
+     * distinguidos por `rol_en_grupo`), así que una sola llamada
+     * reemplaza (sync) el personal completo del grupo — mandar la
+     * lista nueva completa cubre agregar, quitar o cambiarle el rol a
+     * alguien, sin un endpoint de "quitar" aparte.
+     */
+    public function asignarUsuarios(AsignarUsuariosGrupoTallerRequest $request, GrupoTaller $grupo): JsonResponse
+    {
+        if ($grupo->cicloLectivo->estado !== 'abierto') {
+            throw ValidationException::withMessages([
+                'grupo' => ['No se puede modificar el personal de un grupo de un ciclo lectivo cerrado y archivado de solo lectura.'],
+            ]);
+        }
+
+        $sync = collect($request->validated('asignaciones'))
+            ->mapWithKeys(fn (array $fila) => [$fila['usuario_id'] => ['rol_en_grupo' => $fila['rol_en_grupo']]])
+            ->all();
+
+        $grupo->usuarios()->sync($sync);
+        $grupo = $grupo->fresh(['usuarios']);
+
+        return response()->json([
+            'data' => $this->formatearGrupo($grupo) + [
+                'personal' => $grupo->usuarios->map(fn ($u) => [
+                    'id_usuario' => $u->id_usuario,
+                    'nombre' => $u->nombre,
+                    'apellido' => $u->apellido,
+                    'rol_en_grupo' => $u->pivot->rol_en_grupo,
+                ])->values(),
             ],
         ]);
     }

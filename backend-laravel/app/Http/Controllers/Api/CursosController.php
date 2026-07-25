@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Cursos\ActualizarCursoRequest;
+use App\Http\Requests\Api\Cursos\AsignarPreceptoresCursoRequest;
 use App\Http\Requests\Api\Cursos\CrearCursoRequest;
 use App\Models\CicloLectivo;
 use App\Models\Curso;
@@ -12,7 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * "Estructura académica, parte 2": gestión manual de `cursos` (nivel +
- * división + turno dentro de un ciclo lectivo puntual).
+ * división + turno dentro de un ciclo lectivo puntual), más la
+ * asignación de sus preceptores responsables.
  *
  * Por qué hace falta un CRUD manual pese a que `AperturaCicloController`
  * ya clona cursos automáticamente de un ciclo al siguiente: esa clonación
@@ -104,6 +106,36 @@ class CursosController extends Controller
         $curso->delete();
 
         return response()->json(['data' => ['id_curso' => $curso->id_curso, 'eliminado' => true]]);
+    }
+
+    /**
+     * Narrativa RF1: "Asignar uno o más preceptores responsables a cada
+     * curso y división". Reemplaza (sync) la lista completa en vez de
+     * acumular — mismo criterio ya usado en `RolesController::asignarPermisos`
+     * y `UsuariosController::asignarRoles` — así que reinvocar con una
+     * lista distinta sirve para agregar, quitar o reemplazar preceptores
+     * en una sola llamada, sin necesidad de un endpoint de "quitar" aparte.
+     */
+    public function asignarPreceptores(AsignarPreceptoresCursoRequest $request, Curso $curso): JsonResponse
+    {
+        if ($curso->cicloLectivo->estado !== 'abierto') {
+            throw ValidationException::withMessages([
+                'curso' => ['No se puede modificar los preceptores de un curso de un ciclo lectivo cerrado y archivado de solo lectura.'],
+            ]);
+        }
+
+        $curso->preceptores()->sync($request->validated('usuario_ids'));
+        $curso = $curso->fresh(['nivel', 'division', 'preceptores']);
+
+        return response()->json([
+            'data' => $this->formatear($curso) + [
+                'preceptores' => $curso->preceptores->map(fn ($u) => [
+                    'id_usuario' => $u->id_usuario,
+                    'nombre' => $u->nombre,
+                    'apellido' => $u->apellido,
+                ])->values(),
+            ],
+        ]);
     }
 
     private function verificarCombinacionDisponible(int $nivelId, int $divisionId, int $cicloLectivoId): void
