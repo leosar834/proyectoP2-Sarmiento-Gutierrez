@@ -57,6 +57,25 @@ class NivelesController extends Controller
         return response()->json(['data' => ['id_nivel' => $nivel->id_nivel, 'eliminado' => true]]);
     }
 
+    /**
+     * Restaura un nivel dado de baja — ver el razonamiento en
+     * `UsuariosController::restaurar()`.
+     */
+    public function restaurar(int $nivel): JsonResponse
+    {
+        $nivelModel = Nivel::withTrashed()->findOrFail($nivel);
+
+        if (! $nivelModel->trashed()) {
+            throw ValidationException::withMessages([
+                'nivel' => ['Este nivel no está dado de baja — no hay nada que restaurar.'],
+            ]);
+        }
+
+        $nivelModel->restore();
+
+        return response()->json(['data' => $this->formatear($nivelModel->fresh())]);
+    }
+
     private function verificarOrdenDisponible(int $numeroOrden, ?int $idNivelExcluido = null): void
     {
         $existente = Nivel::withTrashed()

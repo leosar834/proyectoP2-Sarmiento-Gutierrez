@@ -56,6 +56,25 @@ class EspecialidadesController extends Controller
         return response()->json(['data' => ['id_especialidad' => $especialidad->id_especialidad, 'eliminado' => true]]);
     }
 
+    /**
+     * Restaura una especialidad dada de baja — ver el razonamiento en
+     * `UsuariosController::restaurar()`.
+     */
+    public function restaurar(int $especialidad): JsonResponse
+    {
+        $especialidadModel = Especialidad::withTrashed()->findOrFail($especialidad);
+
+        if (! $especialidadModel->trashed()) {
+            throw ValidationException::withMessages([
+                'especialidad' => ['Esta especialidad no está dada de baja — no hay nada que restaurar.'],
+            ]);
+        }
+
+        $especialidadModel->restore();
+
+        return response()->json(['data' => $this->formatear($especialidadModel->fresh())]);
+    }
+
     private function verificarNombreDisponible(string $nombre, ?int $idEspecialidadExcluida = null): void
     {
         $existente = Especialidad::withTrashed()

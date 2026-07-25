@@ -128,6 +128,26 @@ class AlumnosController extends Controller
         return response()->json(['data' => ['id_alumno' => $alumno->id_alumno, 'eliminado' => true]]);
     }
 
+    /**
+     * Restaura un legajo dado de baja — ver el razonamiento en
+     * `UsuariosController::restaurar()`. Sin guard de ciclo: el legajo
+     * es permanente, no cuelga de ningún ciclo lectivo puntual.
+     */
+    public function restaurar(int $alumno): JsonResponse
+    {
+        $alumnoModel = Alumno::withTrashed()->findOrFail($alumno);
+
+        if (! $alumnoModel->trashed()) {
+            throw ValidationException::withMessages([
+                'alumno' => ['Este alumno no está dado de baja — no hay nada que restaurar.'],
+            ]);
+        }
+
+        $alumnoModel->restore();
+
+        return response()->json(['data' => $this->formatearLegajo($alumnoModel->fresh())]);
+    }
+
     private function verificarDniDisponible(string $dni, ?int $idAlumnoExcluido = null): void
     {
         $existente = Alumno::withTrashed()

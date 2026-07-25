@@ -108,11 +108,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('/ciclos-lectivos/{ciclo}/grupos-ed-fisica', [GruposEdFisicaController::class, 'crear']);
         Route::get('/ciclos-lectivos/{ciclo}/grupos-ed-fisica', [GruposEdFisicaController::class, 'index']);
+        Route::put('/grupos-ed-fisica/{grupo}', [GruposEdFisicaController::class, 'actualizar']);
+        Route::delete('/grupos-ed-fisica/{grupo}', [GruposEdFisicaController::class, 'eliminar']);
 
         Route::post('/grupos-ed-fisica/{grupo}/asignar-lote', [GruposEdFisicaController::class, 'asignarLote']);
 
         Route::post('/ciclos-lectivos/{ciclo}/grupos-taller', [GruposTallerController::class, 'crear']);
         Route::get('/ciclos-lectivos/{ciclo}/grupos-taller', [GruposTallerController::class, 'index']);
+        Route::put('/grupos-taller/{grupo}', [GruposTallerController::class, 'actualizar']);
+        Route::delete('/grupos-taller/{grupo}', [GruposTallerController::class, 'eliminar']);
 
         Route::post('/grupos-taller/{grupo}/asignar-lote', [GruposTallerController::class, 'asignarLote']);
         Route::post('/ciclos-lectivos/{ciclo}/inscripciones/asignar-especialidad-lote', [DistribucionEspecialidadesController::class, 'asignarLote']);
@@ -121,6 +125,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/ciclos-lectivos/{ciclo}/cursos', [CursosController::class, 'index']);
         Route::put('/cursos/{curso}', [CursosController::class, 'actualizar']);
         Route::delete('/cursos/{curso}', [CursosController::class, 'eliminar']);
+        Route::patch('/cursos/{curso}/restaurar', [CursosController::class, 'restaurar']);
 
         Route::post('/materias-taller', [MateriasTallerController::class, 'crear']);
         Route::get('/materias-taller', [MateriasTallerController::class, 'index']);
@@ -131,28 +136,33 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/roles', [RolesController::class, 'index']);
         Route::put('/roles/{rol}', [RolesController::class, 'actualizar']);
         Route::delete('/roles/{rol}', [RolesController::class, 'eliminar']);
+        Route::patch('/roles/{rol}/restaurar', [RolesController::class, 'restaurar']);
         Route::put('/roles/{rol}/permisos', [RolesController::class, 'asignarPermisos']);
 
         Route::post('/usuarios', [UsuariosController::class, 'crear']);
         Route::get('/usuarios', [UsuariosController::class, 'index']);
         Route::put('/usuarios/{usuario}', [UsuariosController::class, 'actualizar']);
         Route::delete('/usuarios/{usuario}', [UsuariosController::class, 'eliminar']);
+        Route::patch('/usuarios/{usuario}/restaurar', [UsuariosController::class, 'restaurar']);
         Route::put('/usuarios/{usuario}/roles', [UsuariosController::class, 'asignarRoles']);
 
         Route::post('/niveles', [NivelesController::class, 'crear']);
         Route::get('/niveles', [NivelesController::class, 'index']);
         Route::put('/niveles/{nivel}', [NivelesController::class, 'actualizar']);
         Route::delete('/niveles/{nivel}', [NivelesController::class, 'eliminar']);
+        Route::patch('/niveles/{nivel}/restaurar', [NivelesController::class, 'restaurar']);
 
         Route::post('/divisiones', [DivisionesController::class, 'crear']);
         Route::get('/divisiones', [DivisionesController::class, 'index']);
         Route::put('/divisiones/{division}', [DivisionesController::class, 'actualizar']);
         Route::delete('/divisiones/{division}', [DivisionesController::class, 'eliminar']);
+        Route::patch('/divisiones/{division}/restaurar', [DivisionesController::class, 'restaurar']);
 
         Route::post('/especialidades', [EspecialidadesController::class, 'crear']);
         Route::get('/especialidades', [EspecialidadesController::class, 'index']);
         Route::put('/especialidades/{especialidad}', [EspecialidadesController::class, 'actualizar']);
         Route::delete('/especialidades/{especialidad}', [EspecialidadesController::class, 'eliminar']);
+        Route::patch('/especialidades/{especialidad}/restaurar', [EspecialidadesController::class, 'restaurar']);
 
         // RF2 — apertura diaria del permiso para tomar asistencia
         // (narrativa, Alcance: "el jefe de preceptores abre manualmente
@@ -173,7 +183,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/alumnos', [AlumnosController::class, 'index']);
         Route::put('/alumnos/{alumno}', [AlumnosController::class, 'actualizar']);
         Route::delete('/alumnos/{alumno}', [AlumnosController::class, 'eliminar']);
-        
+        Route::patch('/alumnos/{alumno}/restaurar', [AlumnosController::class, 'restaurar']);
+
         Route::post('/ciclos-lectivos/{ciclo}/traslados', [TrasladosController::class, 'trasladar']);
 
         Route::put('/inscripciones/{inscripcion}/dar-de-baja', [TrasladosController::class, 'darDeBaja']);

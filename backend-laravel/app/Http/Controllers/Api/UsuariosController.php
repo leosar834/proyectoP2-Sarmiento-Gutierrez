@@ -103,6 +103,31 @@ class UsuariosController extends Controller
     }
 
     /**
+     * Restaura un usuario dado de baja (SoftDeletes) — completa la
+     * sugerencia que ya daban `crear()`/`actualizar()` cuando el email
+     * pedido pertenece a un usuario borrado ("hay que restaurarlo en
+     * vez de crear uno nuevo"): antes de este método esa sugerencia no
+     * tenía ningún endpoint al cual apuntar. Sin type-hint de `Usuario`
+     * en la firma a propósito — el binding implícito de Laravel excluye
+     * los borrados lógicos por default, así que acá se busca a mano con
+     * `withTrashed()`.
+     */
+    public function restaurar(int $usuario): JsonResponse
+    {
+        $usuarioModel = Usuario::withTrashed()->findOrFail($usuario);
+
+        if (! $usuarioModel->trashed()) {
+            throw ValidationException::withMessages([
+                'usuario' => ['Este usuario no está dado de baja — no hay nada que restaurar.'],
+            ]);
+        }
+
+        $usuarioModel->restore();
+
+        return response()->json(['data' => $this->formatearUsuario($usuarioModel->fresh(['roles']))]);
+    }
+
+    /**
      * `uq_usuarios_email` no incluye `deleted_at` (ver nota en el
      * modelo `Usuario`), así que un email "libre" puede en realidad
      * pertenecer a un usuario dado de baja.

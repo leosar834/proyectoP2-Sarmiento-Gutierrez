@@ -138,6 +138,34 @@ class CursosController extends Controller
         ]);
     }
 
+    /**
+     * Restaura un curso dado de baja — ver el razonamiento en
+     * `UsuariosController::restaurar()`. A diferencia de usuarios/roles,
+     * acá sí hace falta el guard de ciclo abierto: un curso es
+     * estructura académica de un ciclo puntual, mismo criterio que
+     * `crear()`/`actualizar()`/`eliminar()` en este mismo controller.
+     */
+    public function restaurar(int $curso): JsonResponse
+    {
+        $cursoModel = Curso::withTrashed()->findOrFail($curso);
+
+        if (! $cursoModel->trashed()) {
+            throw ValidationException::withMessages([
+                'curso' => ['Este curso no está dado de baja — no hay nada que restaurar.'],
+            ]);
+        }
+
+        if ($cursoModel->cicloLectivo->estado !== 'abierto') {
+            throw ValidationException::withMessages([
+                'curso' => ['No se puede restaurar un curso de un ciclo lectivo cerrado y archivado de solo lectura.'],
+            ]);
+        }
+
+        $cursoModel->restore();
+
+        return response()->json(['data' => $this->formatear($cursoModel->fresh(['nivel', 'division']))]);
+    }
+
     private function verificarCombinacionDisponible(int $nivelId, int $divisionId, int $cicloLectivoId): void
     {
         // uq_cursos_nivel_division_ciclo no incluye deleted_at, mismo

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\GruposEdFisica\ActualizarGrupoEdFisicaRequest;
 use App\Http\Requests\Api\GruposEdFisica\AsignarLoteEdFisicaRequest;
 use App\Http\Requests\Api\GruposEdFisica\AsignarProfesorGrupoEdFisicaRequest;
 use App\Http\Requests\Api\GruposEdFisica\CrearGrupoEdFisicaRequest;
@@ -141,6 +142,53 @@ class GruposEdFisicaController extends Controller
                 'asignados' => $asignados,
             ],
         ]);
+    }
+
+    /**
+     * Narrativa RF1: "Crear, modificar y eliminar grupos de educación
+     * física" — la mitad de "modificar" que faltaba. `profesor_id`
+     * queda afuera a propósito, ver el docblock de
+     * `ActualizarGrupoEdFisicaRequest`.
+     */
+    public function actualizar(ActualizarGrupoEdFisicaRequest $request, GrupoEdFisica $grupo): JsonResponse
+    {
+        if ($grupo->cicloLectivo->estado !== 'abierto') {
+            throw ValidationException::withMessages([
+                'grupo' => ['No se puede editar un grupo de un ciclo lectivo cerrado y archivado de solo lectura.'],
+            ]);
+        }
+
+        $grupo->update([
+            'nombre_grupo' => $request->validated('nombre_grupo'),
+            'regimen_cursada' => $request->validated('regimen_cursada'),
+        ]);
+
+        return response()->json(['data' => $this->formatearGrupo($grupo->fresh())]);
+    }
+
+    /**
+     * La mitad de "eliminar" que faltaba de la misma frase de RF1.
+     * Mismo criterio que `GruposTallerController::eliminar`: no se
+     * borra un grupo que ya tiene alumnos asignados.
+     */
+    public function eliminar(GrupoEdFisica $grupo): JsonResponse
+    {
+        if ($grupo->cicloLectivo->estado !== 'abierto') {
+            throw ValidationException::withMessages([
+                'grupo' => ['No se puede eliminar un grupo de un ciclo lectivo cerrado y archivado de solo lectura.'],
+            ]);
+        }
+
+        $tieneAlumnos = $grupo->inscripciones()->exists();
+        if ($tieneAlumnos) {
+            throw ValidationException::withMessages([
+                'grupo' => ['Este grupo ya tiene alumnos asignados — no se puede eliminar.'],
+            ]);
+        }
+
+        $grupo->delete();
+
+        return response()->json(['data' => ['id_grupo_ed_fisica' => $grupo->id_grupo_ed_fisica, 'eliminado' => true]]);
     }
 
     /**

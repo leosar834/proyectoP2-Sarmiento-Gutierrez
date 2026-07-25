@@ -80,6 +80,27 @@ class RolesController extends Controller
     }
 
     /**
+     * Restaura un rol dado de baja — ver el mismo razonamiento en
+     * `UsuariosController::restaurar()`. Sin type-hint de `Rol` en la
+     * firma a propósito, mismo motivo: el binding implícito excluye los
+     * borrados lógicos.
+     */
+    public function restaurar(int $rol): JsonResponse
+    {
+        $rolModel = Rol::withTrashed()->findOrFail($rol);
+
+        if (! $rolModel->trashed()) {
+            throw ValidationException::withMessages([
+                'rol' => ['Este rol no está dado de baja — no hay nada que restaurar.'],
+            ]);
+        }
+
+        $rolModel->restore();
+
+        return response()->json(['data' => $this->formatearRol($rolModel->fresh(['permisos']))]);
+    }
+
+    /**
      * `uq_roles_nombre` no incluye `deleted_at` (ver nota en el modelo
      * `Rol`), así que un nombre "libre" en la UI puede en realidad
      * pertenecer a un rol dado de baja — se avisa distinto en ese caso

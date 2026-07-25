@@ -53,6 +53,25 @@ class DivisionesController extends Controller
         return response()->json(['data' => ['id_division' => $division->id_division, 'eliminado' => true]]);
     }
 
+    /**
+     * Restaura una división dada de baja — ver el razonamiento en
+     * `UsuariosController::restaurar()`.
+     */
+    public function restaurar(int $division): JsonResponse
+    {
+        $divisionModel = Division::withTrashed()->findOrFail($division);
+
+        if (! $divisionModel->trashed()) {
+            throw ValidationException::withMessages([
+                'division' => ['Esta división no está dada de baja — no hay nada que restaurar.'],
+            ]);
+        }
+
+        $divisionModel->restore();
+
+        return response()->json(['data' => $this->formatear($divisionModel->fresh())]);
+    }
+
     private function verificarNombreDisponible(string $nombre, ?int $idDivisionExcluida = null): void
     {
         $existente = Division::withTrashed()
