@@ -23,6 +23,7 @@ return new class extends Migration
         'justificaciones',
         'contadores_asistencia',
         'detalles_asistencia',
+        'ausencias_docentes',
         'planillas_asistencia',
         'permisos_diarios',
         'dias_sin_clases',

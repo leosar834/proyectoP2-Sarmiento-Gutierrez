@@ -779,3 +779,58 @@ BEGIN
      WHERE id_ciclo_lectivo = p_ciclo_lectivo_id
        AND estado = 'abierto';
 END;
+
+
+-- =====================================================================
+-- 15. TABLA: AUTO-REPORTE DE AUSENCIA DEL PROFESOR (TALLER / ED. FÍSICA)
+-- =====================================================================
+-- Funcionalidad pedida explícitamente por la cátedra, fuera de la
+-- narrativa original: un profesor de taller o educación física puede
+-- notificar su propia ausencia de un día puntual para un grupo puntual,
+-- para que ese día no cuente asistencia en ese grupo. No aplica a
+-- preceptores (tienen un suplente asignado para cubrir su ausencia) ni
+-- a la asistencia teórica (siempre obligatoria mientras haya clases) —
+-- por eso `area` acá solo admite 'taller'/'ed_fisica', a diferencia del
+-- ENUM de `planillas_asistencia` (sección 6) que sí incluye 'teorica'.
+--
+-- Siempre es HOY, sin excepción, a pedido explícito de la cátedra: el
+-- profesor recibe la notificación para tomar asistencia el mismo día,
+-- y ese mismo día, si falta, notifica su ausencia — no hay aviso con
+-- anticipación ni carga retroactiva.
+--
+-- El efecto real lo hace cumplir la capa de aplicación
+-- (AsistenciaController::crear()), que rechaza abrir una planilla de
+-- taller/ed. física si existe una fila acá para ese grupo+fecha — mismo
+-- mecanismo que usa `dias_sin_clases` (sección 5): sin planilla no hay
+-- `detalles_asistencia`, así que `sp_cerrar_ciclo` (sección 14) no
+-- cuenta ese día en `total_clases` para ningún alumno del grupo.
+--
+-- Las dos UNIQUE KEY (una por columna de grupo) reemplazan a un estado
+-- "activa/cancelada": como no hay SoftDeletes, cancelar es un DELETE
+-- físico (igual que `dias_sin_clases`), así que un grupo+fecha nunca
+-- tiene más de una fila viva a la vez sin necesitar esa columna extra.
+-- MySQL no choca dos NULL entre sí en una UNIQUE KEY, así que las filas
+-- de la otra área (con esa columna en NULL) nunca colisionan entre ellas.
+
+CREATE TABLE ausencias_docentes (
+    id_ausencia_docente  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    usuario_id           INT UNSIGNED NOT NULL COMMENT 'Profesor que notifica su propia ausencia.',
+    area                 ENUM('taller','ed_fisica') NOT NULL,
+    grupo_taller_id      INT UNSIGNED NULL COMMENT 'Solo si area = taller.',
+    grupo_ed_fisica_id   INT UNSIGNED NULL COMMENT 'Solo si area = ed_fisica.',
+    fecha                DATE NOT NULL,
+    created_at           DATETIME NULL,
+    updated_at           DATETIME NULL,
+    KEY idx_ad_usuario (usuario_id),
+    KEY idx_ad_grupo_taller_fecha (grupo_taller_id, fecha),
+    KEY idx_ad_grupo_ef_fecha (grupo_ed_fisica_id, fecha),
+    UNIQUE KEY uq_ad_taller_fecha (grupo_taller_id, fecha),
+    UNIQUE KEY uq_ad_ef_fecha (grupo_ed_fisica_id, fecha),
+    CONSTRAINT fk_ad_usuario FOREIGN KEY (usuario_id)         REFERENCES usuarios(id_usuario),
+    CONSTRAINT fk_ad_gtaller FOREIGN KEY (grupo_taller_id)    REFERENCES grupos_taller(id_grupo_taller),
+    CONSTRAINT fk_ad_gef     FOREIGN KEY (grupo_ed_fisica_id) REFERENCES grupos_ed_fisica(id_grupo_ed_fisica),
+    CONSTRAINT chk_ad_una_sola_area CHECK (
+        (area = 'taller'    AND grupo_taller_id    IS NOT NULL AND grupo_ed_fisica_id IS NULL) OR
+        (area = 'ed_fisica' AND grupo_ed_fisica_id IS NOT NULL AND grupo_taller_id    IS NULL)
+    )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

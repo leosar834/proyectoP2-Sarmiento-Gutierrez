@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AlertasController;
 use App\Http\Controllers\Api\AsignacionesController;
 use App\Http\Controllers\Api\AsistenciaController;
+use App\Http\Controllers\Api\AusenciasDocentesController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CierreCicloController;
 use App\Http\Controllers\Api\DesenlacesController;
@@ -43,8 +44,20 @@ Route::middleware('auth:sanctum')->group(function () {
     // RF2 — Registro de Asistencia. Cada ruta encadena, además de
     // auth:sanctum, el permiso puntual que le corresponde según la
     // narrativa (ver App\Http\Middleware\VerificarPermiso).
-    Route::middleware('permiso:tomar_asistencia')
-        ->post('/planillas', [AsistenciaController::class, 'crear']);
+    Route::middleware('permiso:tomar_asistencia')->group(function () {
+        Route::post('/planillas', [AsistenciaController::class, 'crear']);
+
+        // Auto-reporte de ausencia del profesor de taller/ed. física —
+        // pedido explícito de la cátedra, fuera de la narrativa
+        // original (ver App\Models\AusenciaDocente). No aplica a
+        // preceptores (suplente asignado) ni a teórica (siempre
+        // obligatoria si hay clases). Comparte permiso con abrir la
+        // planilla: es la contracara del mismo gesto, mismo grupo,
+        // mismo día.
+        Route::post('/ausencias-docentes', [AusenciasDocentesController::class, 'crear']);
+        Route::get('/ausencias-docentes', [AusenciasDocentesController::class, 'index']);
+        Route::delete('/ausencias-docentes/{ausenciaDocente}', [AusenciasDocentesController::class, 'eliminar']);
+    });
 
     Route::middleware('permiso:editar_asistencia_del_dia')->group(function () {
         Route::put('/planillas/{planilla}/detalles', [AsistenciaController::class, 'guardarDetalles']);

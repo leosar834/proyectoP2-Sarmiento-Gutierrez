@@ -9,6 +9,7 @@ use App\Http\Requests\Api\Asistencia\CrearPlanillaRequest;
 use App\Http\Requests\Api\Asistencia\GuardarDetallesRequest;
 use App\Http\Resources\DetalleAsistenciaResource;
 use App\Http\Resources\PlanillaAsistenciaResource;
+use App\Models\AusenciaDocente;
 use App\Models\Curso;
 use App\Models\DetalleAsistencia;
 use App\Models\GrupoEdFisica;
@@ -69,6 +70,12 @@ class AsistenciaController extends Controller
         if (! $this->usuarioPertenece($usuario, $planilla)) {
             throw ValidationException::withMessages([
                 'area' => ['Ese curso/grupo no está asignado a tu usuario.'],
+            ]);
+        }
+
+        if ($this->profesorNotificoAusenciaHoy($planilla)) {
+            throw ValidationException::withMessages([
+                'area' => ['El profesor a cargo notificó su ausencia hoy para este grupo — no corresponde tomar asistencia.'],
             ]);
         }
 
@@ -293,5 +300,29 @@ class AsistenciaController extends Controller
             'ed_fisica' => $planilla->grupoEdFisica?->profesor_id === $usuario->id_usuario,
             default => false,
         };
+    }
+
+    /**
+     * Auto-reporte de ausencia del profesor (tabla `ausencias_docentes`,
+     * ver AusenciasDocentesController) — funcionalidad pedida por la
+     * cátedra, fuera de la narrativa original. Solo aplica a
+     * taller/ed. física (los preceptores tienen suplente asignado, y
+     * teórica siempre es obligatoria si hay clases); por eso `teorica`
+     * nunca puede tener una fila acá y se descarta de entrada. Bloquea
+     * a cualquiera que intente abrir la planilla de ese grupo hoy —
+     * profesor o preceptor de taller por igual — no solo a quien
+     * notificó la ausencia, mismo criterio que `DiaSinClase`.
+     */
+    private function profesorNotificoAusenciaHoy(PlanillaAsistencia $planilla): bool
+    {
+        if ($planilla->area === 'teorica') {
+            return false;
+        }
+
+        return AusenciaDocente::where('area', $planilla->area)
+            ->where('grupo_taller_id', $planilla->grupo_taller_id)
+            ->where('grupo_ed_fisica_id', $planilla->grupo_ed_fisica_id)
+            ->whereDate('fecha', $planilla->fecha)
+            ->exists();
     }
 }
