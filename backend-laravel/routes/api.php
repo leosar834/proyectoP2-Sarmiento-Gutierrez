@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\DivisionesController;
 use App\Http\Controllers\Api\EspecialidadesController;
 use App\Http\Controllers\Api\CursosController;
 use App\Http\Controllers\Api\MateriasTallerController;
+use App\Http\Controllers\Api\PermisosDiariosController;
 use App\Http\Controllers\Api\DiasSinClasesController;
 use App\Http\Controllers\Api\TrasladosController;
 use App\Http\Controllers\Api\AlumnosController;
@@ -152,6 +153,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/especialidades', [EspecialidadesController::class, 'index']);
         Route::put('/especialidades/{especialidad}', [EspecialidadesController::class, 'actualizar']);
         Route::delete('/especialidades/{especialidad}', [EspecialidadesController::class, 'eliminar']);
+
+        // RF2 — apertura diaria del permiso para tomar asistencia
+        // (narrativa, Alcance: "el jefe de preceptores abre manualmente
+        // a diario el permiso..."). Sin `{ciclo}`: `permisos_diarios`
+        // no tiene ciclo_lectivo_id, es UNIQUE por fecha únicamente —
+        // ver App\Http\Controllers\Api\PermisosDiariosController.
+        Route::post('/permisos-diarios/abrir', [PermisosDiariosController::class, 'abrir']);
+        Route::patch('/permisos-diarios/cerrar', [PermisosDiariosController::class, 'cerrar']);
+        Route::get('/permisos-diarios/hoy', [PermisosDiariosController::class, 'hoy']);
 
         Route::post('/ciclos-lectivos/{ciclo}/dias-sin-clases', [DiasSinClasesController::class, 'crear']);
         Route::get('/ciclos-lectivos/{ciclo}/dias-sin-clases', [DiasSinClasesController::class, 'index']);
