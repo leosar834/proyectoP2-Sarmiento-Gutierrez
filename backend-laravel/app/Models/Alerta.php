@@ -12,8 +12,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * disparado desde los mismos triggers que ya recalculan
  * `contadores_asistencia` — no hay lógica de negocio que reimplementar
  * acá, la app solo lista y marca como atendidas. El tercer tipo
- * (`asistencia_perfecta`) se genera al cierre de ciclo lectivo, un
- * proceso todavía no construido.
+ * (`asistencia_perfecta`) se genera al cierre de ciclo lectivo —
+ * `sp_cerrar_ciclo` (ver `CierreCicloController`, ya implementado por
+ * completo) es quien la inserta como parte de sus cuatro fases.
  *
  * Por eso `$fillable` queda reducido a `estado`: la aplicación nunca
  * debe insertar una fila acá (eso ya lo hace MySQL, con su propia

@@ -36,6 +36,7 @@ CREATE TABLE roles (
     activo          BOOLEAN NOT NULL DEFAULT TRUE,
     created_at      DATETIME NULL,
     updated_at      DATETIME NULL,
+    deleted_at      DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     UNIQUE KEY uq_roles_nombre (nombre)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -58,6 +59,7 @@ CREATE TABLE usuarios (
     activo          BOOLEAN NOT NULL DEFAULT TRUE,
     created_at      DATETIME NULL,
     updated_at      DATETIME NULL,
+    deleted_at      DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes). Distinto de "activo": desactivar bloquea el login, eliminar lo saca de los listados.',
     UNIQUE KEY uq_usuarios_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -114,6 +116,7 @@ CREATE TABLE niveles (
     numero_orden    SMALLINT UNSIGNED NOT NULL COMMENT 'Orden interno usado para promocionar N -> N+1.',
     created_at      DATETIME NULL,
     updated_at      DATETIME NULL,
+    deleted_at      DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     UNIQUE KEY uq_niveles_orden (numero_orden)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -122,6 +125,7 @@ CREATE TABLE divisiones (
     nombre          VARCHAR(20) NOT NULL,
     created_at      DATETIME NULL,
     updated_at      DATETIME NULL,
+    deleted_at      DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     UNIQUE KEY uq_divisiones_nombre (nombre)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -130,6 +134,7 @@ CREATE TABLE especialidades (
     nombre          VARCHAR(100) NOT NULL,
     created_at      DATETIME NULL,
     updated_at      DATETIME NULL,
+    deleted_at      DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     UNIQUE KEY uq_especialidades_nombre (nombre)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -141,6 +146,7 @@ CREATE TABLE cursos (
     turno            ENUM('mañana','tarde','noche') NOT NULL,
     created_at       DATETIME NULL,
     updated_at       DATETIME NULL,
+    deleted_at       DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     UNIQUE KEY uq_cursos_nivel_division_ciclo (nivel_id, division_id, ciclo_lectivo_id),
     KEY idx_cursos_division (division_id),
     KEY idx_cursos_ciclo (ciclo_lectivo_id),
@@ -165,6 +171,7 @@ CREATE TABLE materias_taller (
     regimen_cursada    ENUM('anual','trimestral','semestral','personalizado') NOT NULL,
     created_at         DATETIME NULL,
     updated_at         DATETIME NULL,
+    deleted_at         DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     KEY idx_materias_taller_especialidad (especialidad_id),
     CONSTRAINT fk_mt_especialidad FOREIGN KEY (especialidad_id) REFERENCES especialidades(id_especialidad)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -177,6 +184,7 @@ CREATE TABLE grupos_taller (
     nombre_grupo       VARCHAR(50) NOT NULL,
     created_at         DATETIME NULL,
     updated_at         DATETIME NULL,
+    deleted_at         DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     UNIQUE KEY uq_grupos_taller (materia_taller_id, nivel_id, ciclo_lectivo_id, nombre_grupo),
     KEY idx_grupos_taller_nivel (nivel_id),
     KEY idx_grupos_taller_ciclo (ciclo_lectivo_id),
@@ -205,6 +213,7 @@ CREATE TABLE grupos_ed_fisica (
     profesor_id          INT UNSIGNED NOT NULL,
     created_at           DATETIME NULL,
     updated_at           DATETIME NULL,
+    deleted_at           DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes).',
     UNIQUE KEY uq_grupos_ed_fisica (ciclo_lectivo_id, nombre_grupo),
     KEY idx_gef_profesor (profesor_id),
     CONSTRAINT fk_gef_ciclo    FOREIGN KEY (ciclo_lectivo_id) REFERENCES ciclos_lectivos(id_ciclo_lectivo),
@@ -226,6 +235,7 @@ CREATE TABLE alumnos (
     fecha_ingreso_institucion  DATE NOT NULL,
     created_at                 DATETIME NULL,
     updated_at                 DATETIME NULL,
+    deleted_at                 DATETIME NULL COMMENT 'Borrado lógico (Laravel SoftDeletes). El legajo no se borra físicamente.',
     UNIQUE KEY uq_alumnos_dni (dni)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

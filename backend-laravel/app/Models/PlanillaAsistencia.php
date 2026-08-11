@@ -15,13 +15,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * directamente evita tener que repetir ese `switch` en cada lugar que
  * consulta una planilla.
  *
- * `estado` recorre en_curso -> enviada -> verificada -> bloqueada. Las
- * planillas de teóricas y educación física normalmente quedan en
- * en_curso (el preceptor/profesor las sigue editando toda la jornada);
- * el circuito completo de los cuatro estados es propio del área de
- * taller (RF2: el profesor carga, el preceptor de taller verifica y
- * envía a preceptoría, y recién ahí puede quedar bloqueada para
- * corrección). El bloqueo real lo hace cumplir el trigger de MySQL
+ * `estado` es `en_curso` o `bloqueada` — dos estados, no los cuatro que
+ * en algún momento se planearon aquí (`en_curso -> enviada -> verificada
+ * -> bloqueada`). Simplificación documentada a propósito (ver el
+ * docblock de `AsistenciaController`, que es la fuente de verdad de
+ * esta decisión): la narrativa describe para taller un paso de
+ * "verificar" y otro de "enviar" antes del bloqueo (RF2), pero
+ * `AsistenciaController::enviar()` lo modela como una sola transición
+ * (`en_curso -> bloqueada`) porque lo que importa para el sistema es el
+ * resultado — la planilla queda bloqueada y solo jefa de
+ * preceptores/administrador puede corregirla después — no un tercer
+ * estado intermedio persistido sin reglas propias. El bloqueo real lo
+ * hace cumplir el trigger de MySQL
  * (`fn_planilla_bloqueada` + `trg_detalles_before_*`), no esta clase —
  * `estaBloqueada()` es solo el mismo chequeo del lado de PHP para poder
  * dar una respuesta clara antes de llegar a la base.
