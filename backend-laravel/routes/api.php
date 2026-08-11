@@ -25,10 +25,16 @@ use App\Http\Controllers\Api\PermisosDiariosController;
 use App\Http\Controllers\Api\DiasSinClasesController;
 use App\Http\Controllers\Api\TrasladosController;
 use App\Http\Controllers\Api\AlumnosController;
+use App\Http\Controllers\Api\RegistroAdministradorController;
 use Illuminate\Support\Facades\Route;
 
 
 Route::post('/login', [AuthController::class, 'login']);
+
+// Alta pública del primer administrador — ver el docblock del
+// controller para la guarda de seguridad (solo funciona si el sistema
+// todavía no tiene NINGÚN usuario, ni siquiera borrado).
+Route::post('/registro-administrador', [RegistroAdministradorController::class, 'crear']);
 
 Route::middleware('auth:sanctum')->group(function () {
 

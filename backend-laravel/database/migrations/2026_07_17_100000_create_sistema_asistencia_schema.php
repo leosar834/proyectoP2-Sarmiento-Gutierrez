@@ -74,10 +74,37 @@ return new class extends Migration
      *     verdadero terminador de sentencia.
      * Ver Documentacion_Base_de_Datos.pdf, sección 10 ("Correr el script
      * desde una migración de Laravel").
+     *
+     * `limpiarObjetosNoTabulares()` antes de cargar el script — bug real
+     * encontrado el 12/08/2026 corriendo `migrate:fresh` dos veces
+     * seguidas: ese comando dropea tablas (`Schema::dropAllTables()`)
+     * pero JAMÁS llama a `down()`, y en MySQL una vista/función/
+     * procedimiento no depende de que ninguna tabla siga existiendo para
+     * seguir viva — así que `fn_planilla_bloqueada` (y el resto)
+     * sobrevivía de la corrida anterior, y el `CREATE FUNCTION` de acá
+     * abajo fallaba con "already exists" en la segunda vuelta. Mismo
+     * problema iba a repetirse con `sp_recalcular_contador` y las 2
+     * vistas apenas se resolviera el primero. `sp_cerrar_ciclo` no lo
+     * crea esta migración (lo crea 2026_07_22_120000_add_sp_cerrar_ciclo,
+     * que ya se droppea a sí misma antes de crear), pero se limpia acá
+     * también para dejar el estado completamente equivalente al de una
+     * base nueva antes de que corra ninguna migración.
      */
     public function up(): void
     {
+        $this->limpiarObjetosNoTabulares();
         DB::unprepared($this->prepararScript());
+    }
+
+    private function limpiarObjetosNoTabulares(): void
+    {
+        foreach ($this->vistas as $vista) {
+            DB::unprepared("DROP VIEW IF EXISTS {$vista}");
+        }
+
+        DB::unprepared('DROP PROCEDURE IF EXISTS sp_cerrar_ciclo');
+        DB::unprepared('DROP PROCEDURE IF EXISTS sp_recalcular_contador');
+        DB::unprepared('DROP FUNCTION IF EXISTS fn_planilla_bloqueada');
     }
 
     private function prepararScript(): string
@@ -97,13 +124,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        foreach ($this->vistas as $vista) {
-            DB::unprepared("DROP VIEW IF EXISTS {$vista}");
-        }
-
-        DB::unprepared('DROP PROCEDURE IF EXISTS sp_cerrar_ciclo');
-        DB::unprepared('DROP PROCEDURE IF EXISTS sp_recalcular_contador');
-        DB::unprepared('DROP FUNCTION IF EXISTS fn_planilla_bloqueada');
+        $this->limpiarObjetosNoTabulares();
 
         DB::unprepared('SET FOREIGN_KEY_CHECKS = 0');
         foreach ($this->tablas as $tabla) {
