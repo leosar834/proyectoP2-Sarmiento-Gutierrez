@@ -35,6 +35,17 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  # Cliente HTTP contra el backend Laravel (ver lib/services/api_client.dart).
+  http: ^1.2.2
+
+  # Manejo de estado de la app (sesión/auth, y lo que se vaya sumando)
+  # via ChangeNotifier + Provider/Consumer — ver lib/providers/.
+  provider: ^6.1.2
+
+  # Persistencia del token Sanctum entre reinicios de la app (Keychain en
+  # iOS/macOS, Keystore en Android, Credential Locker en Windows, etc.).
+  flutter_secure_storage: ^9.2.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
