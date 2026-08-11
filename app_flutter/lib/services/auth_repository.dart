@@ -50,12 +50,23 @@ class AuthRepository {
   /// misma forma que `login()` (token + plataforma + usuario, siempre
   /// `'escritorio'`): el backend deja al administrador recién creado ya
   /// logueado, sin que tenga que volver a escribir sus credenciales.
+  ///
+  /// Los datos de `institucion*` viajan anidados bajo la clave
+  /// `institucion` — el backend los usa para crear, en la misma
+  /// transacción, la ficha de la institución (ver
+  /// `RegistroAdministradorRequest`/`App\Models\Institucion`). No hay
+  /// paso de alta de institución aparte: se piden acá mismo.
   Future<ResultadoLogin> registrarAdministrador({
     required String nombre,
     required String apellido,
     required String email,
     required String password,
     required String passwordConfirmation,
+    required String institucionNombre,
+    required String institucionDomicilio,
+    required String institucionCue,
+    required String institucionLocalidad,
+    required String institucionProvincia,
   }) async {
     final respuesta = await _apiClient.post('/registro-administrador', body: {
       'nombre': nombre,
@@ -63,6 +74,13 @@ class AuthRepository {
       'email': email,
       'password': password,
       'password_confirmation': passwordConfirmation,
+      'institucion': {
+        'nombre': institucionNombre,
+        'domicilio': institucionDomicilio,
+        'cue': institucionCue,
+        'localidad': institucionLocalidad,
+        'provincia': institucionProvincia,
+      },
     }) as Map<String, dynamic>;
 
     return ResultadoLogin(

@@ -16,9 +16,14 @@ import '../widgets/campo_texto.dart';
 /// distinta al boceto, como el resto de esta pantalla de auth: en vez de
 /// "Vincular con Google" se pide contraseña propia + confirmación,
 /// porque el sistema no tiene integración con Google (ver el docblock
-/// de `RegistroAdministradorRequest` en el backend). Tampoco hay paso de
-/// "Registro de la Institución" — el sistema asume una sola institución
-/// fija, no hace falta darla de alta.
+/// de `RegistroAdministradorRequest` en el backend). Tampoco hay un paso
+/// de "Registro de la Institución" aparte — el sistema asume una sola
+/// institución fija, no hace falta darla de alta como una entidad propia;
+/// en cambio, este mismo formulario pide sus datos de identificación
+/// (nombre, domicilio, CUE, localidad, provincia) para que el
+/// establecimiento quede cargado desde el primer momento. Esos datos
+/// después se pueden editar desde el panel de administración
+/// (`GET`/`PUT /institucion`, ver `InstitucionController` en el backend).
 class AdminRegistroScreen extends StatefulWidget {
   const AdminRegistroScreen({super.key});
 
@@ -34,6 +39,15 @@ class _AdminRegistroScreenState extends State<AdminRegistroScreen> {
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
 
+  // Ficha de la institución — se piden acá mismo, no en un paso aparte
+  // (ver el docblock de la clase). Se pueden editar después desde el
+  // panel de administración.
+  final _institucionNombreController = TextEditingController();
+  final _institucionDomicilioController = TextEditingController();
+  final _institucionCueController = TextEditingController();
+  final _institucionLocalidadController = TextEditingController();
+  final _institucionProvinciaController = TextEditingController();
+
   bool _passwordVisible = false;
   bool _passwordConfirmVisible = false;
   ApiException? _ultimoError;
@@ -45,6 +59,11 @@ class _AdminRegistroScreenState extends State<AdminRegistroScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _passwordConfirmController.dispose();
+    _institucionNombreController.dispose();
+    _institucionDomicilioController.dispose();
+    _institucionCueController.dispose();
+    _institucionLocalidadController.dispose();
+    _institucionProvinciaController.dispose();
     super.dispose();
   }
 
@@ -62,6 +81,11 @@ class _AdminRegistroScreenState extends State<AdminRegistroScreen> {
             email: _emailController.text.trim(),
             password: _passwordController.text,
             passwordConfirmation: _passwordConfirmController.text,
+            institucionNombre: _institucionNombreController.text.trim(),
+            institucionDomicilio: _institucionDomicilioController.text.trim(),
+            institucionCue: _institucionCueController.text.trim(),
+            institucionLocalidad: _institucionLocalidadController.text.trim(),
+            institucionProvincia: _institucionProvinciaController.text.trim(),
           );
 
       if (!mounted) return;
@@ -272,6 +296,83 @@ class _AdminRegistroScreenState extends State<AdminRegistroScreen> {
                                     !_passwordConfirmVisible,
                               ),
                             ),
+                          ),
+                          const SizedBox(height: 24),
+                          const Divider(color: AppColors.borde),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Datos de la institución',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textoPrincipal,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Identifican al establecimiento que vas a '
+                            'administrar. Se pueden editar después desde '
+                            'el panel de administración.',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: AppColors.textoSecundario,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          CampoTexto(
+                            etiqueta: 'Nombre de la institución *',
+                            controller: _institucionNombreController,
+                            hint: 'Ej: EETN.° 1 Cnel. Manuel Álvarez Prado',
+                            textInputAction: TextInputAction.next,
+                            validator: (v) =>
+                                _validarRequerido(v, 'el nombre de la institución'),
+                            errorServidor:
+                                _ultimoError?.errorDeCampo('institucion.nombre'),
+                          ),
+                          const SizedBox(height: 14),
+                          CampoTexto(
+                            etiqueta: 'Domicilio *',
+                            controller: _institucionDomicilioController,
+                            hint: 'Ej: Av. Siempre Viva 123',
+                            textInputAction: TextInputAction.next,
+                            validator: (v) =>
+                                _validarRequerido(v, 'el domicilio'),
+                            errorServidor: _ultimoError
+                                ?.errorDeCampo('institucion.domicilio'),
+                          ),
+                          const SizedBox(height: 14),
+                          CampoTexto(
+                            etiqueta: 'CUE *',
+                            controller: _institucionCueController,
+                            hint: 'Clave Única de Establecimiento',
+                            textInputAction: TextInputAction.next,
+                            validator: (v) => _validarRequerido(v, 'el CUE'),
+                            errorServidor:
+                                _ultimoError?.errorDeCampo('institucion.cue'),
+                          ),
+                          const SizedBox(height: 14),
+                          CampoTexto(
+                            etiqueta: 'Localidad *',
+                            controller: _institucionLocalidadController,
+                            hint: 'Ej: San Pedro de Jujuy',
+                            textInputAction: TextInputAction.next,
+                            validator: (v) =>
+                                _validarRequerido(v, 'la localidad'),
+                            errorServidor: _ultimoError
+                                ?.errorDeCampo('institucion.localidad'),
+                          ),
+                          const SizedBox(height: 14),
+                          CampoTexto(
+                            etiqueta: 'Provincia *',
+                            controller: _institucionProvinciaController,
+                            hint: 'Ej: Jujuy',
+                            textInputAction: TextInputAction.done,
+                            validator: (v) =>
+                                _validarRequerido(v, 'la provincia'),
+                            errorServidor: _ultimoError
+                                ?.errorDeCampo('institucion.provincia'),
+                            onFieldSubmitted: (_) => _submit(),
                           ),
                           const SizedBox(height: 20),
                           SizedBox(

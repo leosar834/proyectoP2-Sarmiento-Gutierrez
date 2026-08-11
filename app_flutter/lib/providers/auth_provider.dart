@@ -112,13 +112,20 @@ class AuthProvider extends ChangeNotifier {
   /// Alta del primer administrador (ver `AuthRepository.registrarAdministrador`).
   /// Mismo manejo de estado/errores que `login()` — el backend deja al
   /// usuario ya logueado, así que un alta exitosa termina exactamente
-  /// igual que un login exitoso.
+  /// igual que un login exitoso. Incluye los datos de la institución
+  /// (nombre, domicilio, CUE, localidad, provincia): el backend los
+  /// exige desde este mismo alta, no hay paso separado.
   Future<void> registrarAdministrador({
     required String nombre,
     required String apellido,
     required String email,
     required String password,
     required String passwordConfirmation,
+    required String institucionNombre,
+    required String institucionDomicilio,
+    required String institucionCue,
+    required String institucionLocalidad,
+    required String institucionProvincia,
   }) async {
     _status = AuthStatus.autenticando;
     notifyListeners();
@@ -130,6 +137,11 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
         passwordConfirmation: passwordConfirmation,
+        institucionNombre: institucionNombre,
+        institucionDomicilio: institucionDomicilio,
+        institucionCue: institucionCue,
+        institucionLocalidad: institucionLocalidad,
+        institucionProvincia: institucionProvincia,
       );
       await _aplicarResultadoAutenticado(resultado);
     } catch (_) {
