@@ -848,3 +848,34 @@ CREATE TABLE ausencias_docentes (
         (area = 'ed_fisica' AND grupo_ed_fisica_id IS NOT NULL AND grupo_taller_id    IS NULL)
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- =====================================================================
+-- 16. TABLA: FICHA DE LA INSTITUCIÓN
+-- =====================================================================
+-- Identificación de la (única) institución que corre este sistema:
+-- nombre, domicilio, CUE (Clave Única de Establecimiento) y ubicación.
+-- No es un parámetro de comportamiento del sistema (a diferencia de
+-- `configuraciones`, sección 2) — es simplemente el dato con el que el
+-- administrador identifica el establecimiento que está gestionando,
+-- para mostrarlo en el panel de administración y en reportes/planillas
+-- impresas.
+--
+-- Fila única, mismo patrón que `configuraciones` (sección 2: `DEFAULT 1`
+-- + CHECK obliga id_institucion = 1), pero SIN INSERT de default acá —
+-- a diferencia de `configuraciones`, no hay un valor razonable por
+-- defecto para el nombre/domicilio/CUE de una institución real. La fila
+-- la crea `RegistroAdministradorController::crear()`, en la misma
+-- transacción del alta del primer administrador: el sistema exige estos
+-- datos desde el primer momento, no los deja para después.
+CREATE TABLE institucion (
+    id_institucion  INT UNSIGNED PRIMARY KEY DEFAULT 1,
+    nombre          VARCHAR(150) NOT NULL,
+    domicilio       VARCHAR(200) NOT NULL,
+    cue             VARCHAR(20) NOT NULL COMMENT 'Clave Única de Establecimiento.',
+    localidad       VARCHAR(100) NOT NULL,
+    provincia       VARCHAR(100) NOT NULL,
+    created_at      DATETIME NULL,
+    updated_at      DATETIME NULL,
+    CONSTRAINT chk_institucion_fila_unica CHECK (id_institucion = 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

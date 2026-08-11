@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Auth\RegistroAdministradorRequest;
 use App\Http\Resources\UsuarioResource;
+use App\Models\Institucion;
 use App\Models\Rol;
 use App\Models\Usuario;
 use Illuminate\Http\JsonResponse;
@@ -28,6 +29,14 @@ use Illuminate\Validation\ValidationException;
  * `php artisan tinker`, PERO solo tiene sentido correr los seeders de
  * catálogo (permisos + roles) sin la fila de usuario de prueba — ver
  * nota de guarda de roles más abajo.
+ *
+ * Además de la cuenta, este mismo alta crea la ficha de la institución
+ * (tabla `institucion`, ver App\Models\Institucion) con los datos que
+ * llegan anidados en `institucion.*` — así el establecimiento queda
+ * identificado (nombre, domicilio, CUE, localidad, provincia) desde el
+ * primer momento, sin necesidad de un paso de alta de institución
+ * separado. Después de esta única creación, se edita desde
+ * `InstitucionController::actualizar()`.
  */
 class RegistroAdministradorController extends Controller
 {
@@ -69,6 +78,19 @@ class RegistroAdministradorController extends Controller
             ]);
 
             $usuario->roles()->attach($rolAdministrador->id_rol);
+
+            // Fila única de `institucion` (id fijo 1 — ver el docblock
+            // de App\Models\Institucion). Va en la misma transacción que
+            // el alta del administrador: si algo falla acá, tampoco
+            // queda un administrador sin institución cargada.
+            Institucion::create([
+                'id_institucion' => 1,
+                'nombre' => $request->validated('institucion.nombre'),
+                'domicilio' => $request->validated('institucion.domicilio'),
+                'cue' => $request->validated('institucion.cue'),
+                'localidad' => $request->validated('institucion.localidad'),
+                'provincia' => $request->validated('institucion.provincia'),
+            ]);
 
             return $usuario;
         });

@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\DiasSinClasesController;
 use App\Http\Controllers\Api\TrasladosController;
 use App\Http\Controllers\Api\AlumnosController;
 use App\Http\Controllers\Api\RegistroAdministradorController;
+use App\Http\Controllers\Api\InstitucionController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -104,6 +105,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // manual) en IngresantesController + GruposTallerController +
     // GruposEdFisicaController + DistribucionEspecialidadesController.
     Route::middleware('permiso:gestionar_sistema')->group(function () {
+        // Ficha de la institución (fila única, ver App\Models\Institucion)
+        // — se crea junto con el primer administrador
+        // (RegistroAdministradorController) y de ahí en más se edita
+        // siempre desde acá, nunca se vuelve a crear.
+        Route::get('/institucion', [InstitucionController::class, 'mostrar']);
+        Route::put('/institucion', [InstitucionController::class, 'actualizar']);
+
         Route::post('/ciclos-lectivos/{ciclo}/cerrar', [CierreCicloController::class, 'cerrar']);
         Route::post('/ciclos-lectivos/{ciclo}/ingresantes', [IngresantesController::class, 'crear']);
         Route::post('/ciclos-lectivos/{ciclo}/abrir-siguiente', [AperturaCicloController::class, 'abrir']);
