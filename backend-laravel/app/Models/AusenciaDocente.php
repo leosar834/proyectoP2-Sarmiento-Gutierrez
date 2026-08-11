@@ -6,12 +6,27 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Auto-reporte de ausencia de un profesor de taller/educación física
- * para un grupo y fecha puntuales (tabla `ausencias_docentes`) — no
+ * Notificación puntual de que HOY no corresponde tomar asistencia para
+ * un grupo de taller/educación física (tabla `ausencias_docentes`) — no
  * aplica a preceptores (narrativa ampliada: tienen un suplente asignado
  * para cubrir su ausencia) ni a la asistencia teórica (siempre
- * obligatoria mientras haya clases). Funcionalidad pedida explícitamente
- * por la cátedra, fuera de la narrativa original.
+ * obligatoria mientras haya clases). Nació como "auto-reporte de
+ * ausencia del profesor" (funcionalidad pedida explícitamente por la
+ * cátedra, fuera de la narrativa original), pero al sistema no le hace
+ * falta saber el motivo real para bloquear la planilla: sirve igual si
+ * el profesor falta, si decide que hoy no corresponde dar esa clase
+ * puntual, o cualquier otra razón del día. `motivo` (igual que en
+ * `DiaSinClase`) es de texto libre y opcional — el profesor lo puede
+ * dejar vacío, o completarlo si quiere que quien vea la planilla
+ * bloqueada sepa por qué. De hecho es la forma más precisa de cubrir un
+ * caso que
+ * `DiaSinClase` no puede resolver: un día sin clases parcial (`alcance`
+ * acotado a un turno) no tiene cómo aplicarse a taller/ed_fisica porque
+ * esas tablas no tienen columna `turno` (ver
+ * docs/limitaciones_conocidas/calendario_escolar_alcance_turno.md) —
+ * pero el propio profesor notificando acá cubre exactamente su grupo,
+ * sin depender de un turno que ni siquiera está bien definido para
+ * taller.
  *
  * El efecto real de esta tabla lo hace cumplir
  * `AsistenciaController::crear()`: antes de abrir una planilla de
@@ -23,8 +38,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * Siempre es HOY — no se notifica con anticipación ni en retrospectiva,
  * a pedido explícito de la cátedra: el profesor recibe la notificación
- * para tomar asistencia el mismo día, y ese mismo día, si falta,
- * notifica su ausencia. Por eso no hay validación de "es día de clase"
+ * para tomar asistencia el mismo día, y ese mismo día decide si
+ * corresponde o no. Por eso no hay validación de "es día de clase"
  * más allá de lo que ya exige el propio grupo (ciclo abierto, profesor
  * asignado) — la fecha nunca la manda el cliente, siempre es `now()`.
  *
@@ -45,6 +60,7 @@ class AusenciaDocente extends Model
         'grupo_taller_id',
         'grupo_ed_fisica_id',
         'fecha',
+        'motivo',
     ];
 
     protected function casts(): array

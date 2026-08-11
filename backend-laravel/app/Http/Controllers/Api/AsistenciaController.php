@@ -12,6 +12,7 @@ use App\Http\Resources\PlanillaAsistenciaResource;
 use App\Models\AusenciaDocente;
 use App\Models\Curso;
 use App\Models\DetalleAsistencia;
+use App\Models\DiaSinClase;
 use App\Models\GrupoEdFisica;
 use App\Models\GrupoTaller;
 use App\Models\PermisoDiario;
@@ -57,6 +58,13 @@ class AsistenciaController extends Controller
             ]);
         }
 
+        $diaSinClases = $this->buscarDiaSinClasesHoy($datos['area'], $datos);
+        if ($diaSinClases !== null) {
+            throw ValidationException::withMessages([
+                'fecha' => ["Hoy es un día sin clases ({$diaSinClases->motivo}) — no se puede abrir la planilla."],
+            ]);
+        }
+
         $planilla = new PlanillaAsistencia([
             'area' => $datos['area'],
             'curso_id' => $datos['curso_id'] ?? null,
@@ -73,9 +81,14 @@ class AsistenciaController extends Controller
             ]);
         }
 
-        if ($this->profesorNotificoAusenciaHoy($planilla)) {
+        $ausenciaDocente = $this->buscarAusenciaDocenteHoy($planilla);
+        if ($ausenciaDocente !== null) {
+            $mensaje = $ausenciaDocente->motivo !== null
+                ? "El profesor a cargo indicó que hoy no corresponde tomar asistencia para este grupo ({$ausenciaDocente->motivo})."
+                : 'El profesor a cargo indicó que hoy no corresponde tomar asistencia para este grupo.';
+
             throw ValidationException::withMessages([
-                'area' => ['El profesor a cargo notificó su ausencia hoy para este grupo — no corresponde tomar asistencia.'],
+                'area' => [$mensaje],
             ]);
         }
 
@@ -283,6 +296,61 @@ class AsistenciaController extends Controller
     }
 
     /**
+     * Calendario escolar (RF1/estructura académica): si hoy está
+     * declarado como día sin clases para el ciclo/turno de este
+     * curso o grupo, no se deja abrir la planilla — es lo que hace
+     * cierto el supuesto de `sp_recalcular_contador` en la base ("los
+     * días sin clases quedan excluidos por construcción" de
+     * `total_clases`).
+     *
+     * Restaurado el 2026-08-11: este método existió desde el commit
+     * `5b74d52` pero se perdió por accidente en `3befbc5` (mismo día,
+     * un commit posterior que agregó `index()` sin querer pisar esto —
+     * ver `git show 3befbc5` para el diff exacto). No hubo ningún
+     * chequeo de día sin clases en producción entre esos dos commits y
+     * esta restauración.
+     *
+     * Limitación documentada a propósito (decisión reafirmada el
+     * 2026-07-24, ver docs/limitaciones_conocidas): `alcance` puede
+     * acotar el feriado a un turno puntual ('mañana'/'tarde'/'noche'),
+     * pero solo `Curso` tiene columna `turno` — `GrupoTaller` y
+     * `GrupoEdFisica` no, y la narrativa tampoco la lista entre los
+     * "Datos del Grupo de Taller"/"Datos del Grupo de Educación
+     * Física" (a diferencia de "Datos del Curso", que sí incluye
+     * "Turno" explícitamente) — taller ni siquiera ocurre en un turno
+     * fijo, la narrativa lo describe como algo que pasa "habitualmente
+     * en contraturno". Para área taller/ed_fisica solo se puede
+     * chequear contra `alcance = 'todos'` (día completo); un día sin
+     * clases acotado a un turno puntual no tiene cómo aplicarse a esas
+     * dos áreas porque el dato con el que compararlo no existe ni
+     * está pensado para existir.
+     */
+    private function buscarDiaSinClasesHoy(string $area, array $datos): ?DiaSinClase
+    {
+        [$cicloLectivoId, $turno] = match ($area) {
+            'teorica' => (function () use ($datos) {
+                $curso = Curso::find($datos['curso_id'] ?? null);
+
+                return [$curso?->ciclo_lectivo_id, $curso?->turno];
+            })(),
+            'taller' => [GrupoTaller::find($datos['grupo_taller_id'] ?? null)?->ciclo_lectivo_id, null],
+            'ed_fisica' => [GrupoEdFisica::find($datos['grupo_ed_fisica_id'] ?? null)?->ciclo_lectivo_id, null],
+            default => [null, null],
+        };
+
+        if ($cicloLectivoId === null) {
+            return null;
+        }
+
+        $alcancesAplicables = $turno !== null ? ['todos', $turno] : ['todos'];
+
+        return DiaSinClase::where('ciclo_lectivo_id', $cicloLectivoId)
+            ->whereDate('fecha', now()->toDateString())
+            ->whereIn('alcance', $alcancesAplicables)
+            ->first();
+    }
+
+    /**
      * Resuelve si el curso/grupo de la planilla (real o de referencia,
      * para la consulta que todavía no tiene fila propia) le pertenece
      * al usuario logueado. Un mismo criterio de pertenencia sirve tanto
@@ -303,26 +371,35 @@ class AsistenciaController extends Controller
     }
 
     /**
-     * Auto-reporte de ausencia del profesor (tabla `ausencias_docentes`,
-     * ver AusenciasDocentesController) — funcionalidad pedida por la
-     * cátedra, fuera de la narrativa original. Solo aplica a
-     * taller/ed. física (los preceptores tienen suplente asignado, y
-     * teórica siempre es obligatoria si hay clases); por eso `teorica`
-     * nunca puede tener una fila acá y se descarta de entrada. Bloquea
-     * a cualquiera que intente abrir la planilla de ese grupo hoy —
-     * profesor o preceptor de taller por igual — no solo a quien
-     * notificó la ausencia, mismo criterio que `DiaSinClase`.
+     * Notificación del profesor de que hoy no corresponde tomar
+     * asistencia para su grupo (tabla `ausencias_docentes`, ver
+     * AusenciasDocentesController) — nació como "auto-reporte de
+     * ausencia" (funcionalidad pedida por la cátedra, fuera de la
+     * narrativa original), pero sirve para cualquier motivo puntual del
+     * día, no solo la ausencia literal del profesor — incluido cubrir,
+     * a nivel de un grupo puntual, el hueco que `DiaSinClase.alcance`
+     * por turno no puede resolver para taller/ed_fisica (ver
+     * docs/limitaciones_conocidas/calendario_escolar_alcance_turno.md).
+     * Solo aplica a taller/ed. física (los preceptores tienen suplente
+     * asignado, y teórica siempre es obligatoria si hay clases); por
+     * eso `teorica` nunca puede tener una fila acá y se descarta de
+     * entrada. Bloquea a cualquiera que intente abrir la planilla de
+     * ese grupo hoy — profesor o preceptor de taller por igual — no
+     * solo a quien la notificó, mismo criterio que `DiaSinClase`. Se
+     * devuelve el modelo completo (no un bool) para poder incluir su
+     * `motivo` opcional en el mensaje de rechazo, igual que ya hace
+     * `buscarDiaSinClasesHoy()`.
      */
-    private function profesorNotificoAusenciaHoy(PlanillaAsistencia $planilla): bool
+    private function buscarAusenciaDocenteHoy(PlanillaAsistencia $planilla): ?AusenciaDocente
     {
         if ($planilla->area === 'teorica') {
-            return false;
+            return null;
         }
 
         return AusenciaDocente::where('area', $planilla->area)
             ->where('grupo_taller_id', $planilla->grupo_taller_id)
             ->where('grupo_ed_fisica_id', $planilla->grupo_ed_fisica_id)
             ->whereDate('fecha', $planilla->fecha)
-            ->exists();
+            ->first();
     }
 }

@@ -792,6 +792,9 @@ END;
 -- a la asistencia teórica (siempre obligatoria mientras haya clases) —
 -- por eso `area` acá solo admite 'taller'/'ed_fisica', a diferencia del
 -- ENUM de `planillas_asistencia` (sección 6) que sí incluye 'teorica'.
+-- `motivo` es de texto libre y opcional (igual que en `dias_sin_clases`,
+-- sección 5) — en la práctica cubre cualquier razón puntual del día, no
+-- solo una ausencia literal del profesor.
 --
 -- Siempre es HOY, sin excepción, a pedido explícito de la cátedra: el
 -- profesor recibe la notificación para tomar asistencia el mismo día,
@@ -819,6 +822,7 @@ CREATE TABLE ausencias_docentes (
     grupo_taller_id      INT UNSIGNED NULL COMMENT 'Solo si area = taller.',
     grupo_ed_fisica_id   INT UNSIGNED NULL COMMENT 'Solo si area = ed_fisica.',
     fecha                DATE NOT NULL,
+    motivo               VARCHAR(100) NULL,
     created_at           DATETIME NULL,
     updated_at           DATETIME NULL,
     KEY idx_ad_usuario (usuario_id),

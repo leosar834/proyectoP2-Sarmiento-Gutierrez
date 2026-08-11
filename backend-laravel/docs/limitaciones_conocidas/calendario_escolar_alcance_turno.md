@@ -40,3 +40,38 @@ Mantener el comportamiento actual: `alcance` por turno solo aplica de verdad a `
 ## Decisión tomada (24/07/2026)
 
 Por ahora se deja como está (Opción 3) — el comportamiento queda documentado en el código y en este archivo para retomarlo más adelante si hace falta. No se tomó ninguna acción de código adicional a partir de esta conversación.
+
+## Actualización (11/08/2026): mitigación práctica ya disponible
+
+`buscarDiaSinClasesHoy()` en `AsistenciaController` había quedado borrado por
+completo sin querer (commit `3befbc5`, 24/07/2026, el mismo día de la
+decisión de arriba) — no bloqueaba ningún día sin clases, para ninguna
+área, ni siquiera `alcance: todos`. Se restauró tal cual estaba, así que la
+limitación de este documento (el `alcance` por turno no aplica a
+taller/ed_fisica) sigue siendo exactamente la misma que se decidió dejar
+como Opción 3 — no cambió nada de lo de acá arriba.
+
+Lo que sí se identificó en esta misma revisión es que **ya existe** una
+vía distinta, más precisa, para cubrir el caso concreto que este
+documento describe (un taller/ed_fisica puntual que no debería tomar
+asistencia un día u horario determinado): `ausencias_docentes`
+(`POST /api/ausencias-docentes`, ver `AusenciasDocentesController` y el
+docblock de `App\Models\AusenciaDocente`). Nació como "el profesor
+notifica su ausencia", pero el mecanismo no le pregunta el motivo —
+solo registra "este grupo, hoy, no se toma asistencia" y bloquea la
+apertura de la planilla de ese grupo puntual, mismo efecto que
+`DiaSinClase` pero scopeado a un solo grupo en vez de a todo un turno.
+Como lo carga el propio profesor sobre su propio grupo, no depende de
+que el sistema sepa en qué turno cursa ese grupo — cubre el hueco de
+raíz para ese caso puntual, sin tocar el schema.
+
+Esto no reemplaza una solución a nivel calendario (sigue sin haber forma
+de que la jefa de preceptores/administración declare de antemano "mañana
+no hay taller" sin pasar por el profesor), y tiene sus propias
+limitaciones: solo lo puede notificar el profesor asignado al grupo (no
+el preceptor de taller), solo el mismo día (no con anticipación), y solo
+antes de que exista una planilla para ese grupo+fecha. Para el caso de
+uso de este documento — un taller/ed_fisica que puntualmente no
+corresponde un día — alcanza. Las opciones 1 y 2 de arriba siguen
+abiertas si en algún momento hace falta cubrir el caso a nivel
+calendario/administración en vez de a nivel profesor.

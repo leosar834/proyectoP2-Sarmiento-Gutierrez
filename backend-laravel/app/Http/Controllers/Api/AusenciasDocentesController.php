@@ -16,11 +16,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Auto-reporte de ausencia del profesor de taller/educación física —
- * funcionalidad pedida explícitamente por la cátedra, fuera de la
- * narrativa original. Ver el docblock de App\Models\AusenciaDocente
- * para el detalle de diseño (por qué solo taller/ed. física, por qué
- * siempre HOY, por qué sin SoftDeletes).
+ * Notifica que HOY no corresponde tomar asistencia para uno o más
+ * grupos propios de taller/educación física — nació como "auto-reporte
+ * de ausencia del profesor" (pedido explícito de la cátedra, fuera de
+ * la narrativa original), pero sirve igual para cualquier otro motivo
+ * puntual del día (ver el docblock de App\Models\AusenciaDocente). Ver
+ * ese mismo docblock para el detalle de diseño (por qué solo taller/ed.
+ * física, por qué siempre HOY, por qué sin SoftDeletes).
  *
  * Va detrás de `permiso:tomar_asistencia` — es la contracara de abrir
  * la planilla para el mismo grupo (mismo usuario, mismo permiso, mismo
@@ -30,10 +32,11 @@ use Illuminate\Validation\ValidationException;
 class AusenciasDocentesController extends Controller
 {
     /**
-     * Notifica la ausencia de HOY para uno o más grupos propios. Es
-     * idempotente por grupo+fecha (ver `procesarUnGrupo`): reintentar la
-     * misma notificación (ej. doble tap en la app) no falla, devuelve la
-     * fila que ya existía.
+     * Notifica que HOY no corresponde tomar asistencia para uno o más
+     * grupos propios (por ausencia del profesor o cualquier otro motivo
+     * puntual del día). Es idempotente por grupo+fecha (ver
+     * `procesarUnGrupo`): reintentar la misma notificación (ej. doble
+     * tap en la app) no falla, devuelve la fila que ya existía.
      */
     public function crear(NotificarAusenciaDocenteRequest $request): JsonResponse
     {
@@ -46,11 +49,13 @@ class AusenciasDocentesController extends Controller
             ]);
         }
 
-        $creadas = DB::transaction(function () use ($request, $usuario, $fecha) {
+        $motivo = $request->validated('motivo');
+
+        $creadas = DB::transaction(function () use ($request, $usuario, $fecha, $motivo) {
             $resultado = [];
 
             foreach ($request->validated('grupos') as $item) {
-                $resultado[] = $this->procesarUnGrupo($item, $usuario, $fecha);
+                $resultado[] = $this->procesarUnGrupo($item, $usuario, $fecha, $motivo);
             }
 
             return $resultado;
@@ -62,9 +67,10 @@ class AusenciasDocentesController extends Controller
     }
 
     /**
-     * Las ausencias que el propio usuario logueado notificó para hoy —
-     * para que la app pueda mostrar "ya avisaste tu falta en estos
-     * grupos" sin tener que recordarlo del lado del cliente.
+     * Las notificaciones que el propio usuario logueado hizo hoy —
+     * para que la app pueda mostrar "ya avisaste que hoy no corresponde
+     * tomar asistencia en estos grupos" sin tener que recordarlo del
+     * lado del cliente.
      */
     public function index(Request $request): JsonResponse
     {
@@ -81,7 +87,7 @@ class AusenciasDocentesController extends Controller
 
     /**
      * Da de baja una notificación propia (ej. el profesor se equivocó
-     * de grupo, o al final sí puede ir a dar clase). Self-service a
+     * de grupo, o al final sí corresponde tomar asistencia). Self-service a
      * propósito: solo quien la notificó puede cancelarla — no hay caso
      * de uso pedido para que un tercero la cancele en su nombre.
      */
@@ -102,7 +108,7 @@ class AusenciasDocentesController extends Controller
         return response()->json(['data' => ['id_ausencia_docente' => $ausenciaDocente->id_ausencia_docente, 'eliminado' => true]]);
     }
 
-    private function procesarUnGrupo(array $item, Usuario $usuario, string $fecha): AusenciaDocente
+    private function procesarUnGrupo(array $item, Usuario $usuario, string $fecha, ?string $motivo): AusenciaDocente
     {
         $area = $item['area'];
 
@@ -165,6 +171,7 @@ class AusenciasDocentesController extends Controller
             'grupo_taller_id' => $grupoTallerId,
             'grupo_ed_fisica_id' => $grupoEdFisicaId,
             'fecha' => $fecha,
+            'motivo' => $motivo,
         ]);
     }
 
@@ -177,6 +184,7 @@ class AusenciasDocentesController extends Controller
             'grupo_taller_id' => $a->grupo_taller_id,
             'grupo_ed_fisica_id' => $a->grupo_ed_fisica_id,
             'fecha' => $a->fecha->toDateString(),
+            'motivo' => $a->motivo,
         ];
     }
 }
