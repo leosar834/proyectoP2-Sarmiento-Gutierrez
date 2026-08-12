@@ -68,11 +68,20 @@ class _AdminRegistroScreenState extends State<AdminRegistroScreen> {
   }
 
   Future<void> _submit() async {
+    // Mismo bug (y misma corrección) que LoginScreen: limpiar
+    // `_ultimoError` DESPUÉS de este primer `validate()` deja la
+    // pantalla trabada en el error del intento anterior si se corrige
+    // el dato y se reenvía — ver el docblock de `_submit()` en
+    // `login_screen.dart` para el detalle completo.
+    if (_ultimoError != null) {
+      setState(() => _ultimoError = null);
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
-
-    setState(() => _ultimoError = null);
 
     try {
       await context.read<AuthProvider>().registrarAdministrador(
@@ -355,7 +364,7 @@ class _AdminRegistroScreenState extends State<AdminRegistroScreen> {
                           CampoTexto(
                             etiqueta: 'Localidad *',
                             controller: _institucionLocalidadController,
-                            hint: 'Ej: San Pedro de Jujuy',
+                            hint: 'Ej: San Salvador de Jujuy',
                             textInputAction: TextInputAction.next,
                             validator: (v) =>
                                 _validarRequerido(v, 'la localidad'),

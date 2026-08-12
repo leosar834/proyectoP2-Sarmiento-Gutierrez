@@ -47,11 +47,29 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submit() async {
+    // Bug real encontrado el 12/08/2026: si se limpia `_ultimoError`
+    // DESPUÉS de este primer `validate()`, un segundo intento con datos
+    // ya corregidos queda bloqueado para siempre. `CampoTexto` mezcla el
+    // error del servidor en su validator (`validator(valor) ?? errorServidor`
+    // — ver su docblock), y ese validator quedó "capturado" en el build
+    // anterior con el `errorServidor` del intento fallido. `setState`
+    // no reconstruye el árbol de forma sincrónica, así que limpiar el
+    // error DESPUÉS de este `validate()` no sirve: el `validate()` de
+    // acá seguiría viendo el validator viejo, con el error viejo, y
+    // devolviendo `false` aunque el campo ya esté corregido — la
+    // pantalla queda "trabada" mostrando el error del intento anterior
+    // para siempre. Por eso se limpia PRIMERO y se espera a que termine
+    // el frame que dispara ese `setState`, para que el `Form` ya tenga
+    // los validators sin el error viejo antes de validar de nuevo.
+    if (_ultimoError != null) {
+      setState(() => _ultimoError = null);
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
-
-    setState(() => _ultimoError = null);
 
     try {
       await context.read<AuthProvider>().login(

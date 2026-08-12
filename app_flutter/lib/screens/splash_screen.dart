@@ -4,11 +4,33 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'home_placeholder_screen.dart';
 import 'login_screen.dart';
+import 'panel_escritorio_screen.dart';
 
 /// Punto de entrada de la app: mientras `AuthProvider` todavía no sabe si
 /// hay una sesión guardada (`AuthStatus.desconocido`) muestra un loading;
 /// apenas lo sabe, redirige — así nunca se ve un parpadeo de "pantalla de
 /// login" de por medio si en realidad ya había una sesión guardada.
+///
+/// Autenticado, el destino depende de la plataforma sellada en el token
+/// (ver `AuthProvider.plataforma`): escritorio va al panel de
+/// administración real (`PanelEscritorioScreen`); móvil sigue en el
+/// placeholder — su pantalla de inicio real es "tomar asistencia" (RF2),
+/// un desarrollo aparte.
+///
+/// `AuthStatus.autenticando` queda agrupado con `noAutenticado` (sigue
+/// mostrando `LoginScreen`), NO con `desconocido` — bug real encontrado
+/// el 12/08/2026: agruparlo con `desconocido` hacía que, al tocar
+/// "Iniciar sesión" con credenciales incorrectas, esta pantalla
+/// reemplazara `LoginScreen` por `_CargandoScreen` (un widget de otro
+/// tipo) apenas arrancaba el pedido, destruyendo el `State` de
+/// `LoginScreen` con el error todavía en camino; cuando el backend
+/// respondía con el 422 y el status volvía a `noAutenticado`, se creaba
+/// una `LoginScreen` NUEVA, así que el `setState` que iba a mostrar el
+/// error corría sobre un `State` ya descartado (`mounted == false`) y
+/// se perdía en silencio — la pantalla "parpadeaba" pero nunca mostraba
+/// por qué. `LoginScreen` ya tiene su propio spinner en el botón
+/// (`context.watch<AuthProvider>().status == AuthStatus.autenticando`),
+/// así que no hace falta un `_CargandoScreen` aparte para ese momento.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -33,12 +55,14 @@ class _SplashScreenState extends State<SplashScreen> {
       builder: (context, auth, _) {
         switch (auth.status) {
           case AuthStatus.desconocido:
-          case AuthStatus.autenticando:
             return const _CargandoScreen();
-          case AuthStatus.autenticado:
-            return const HomePlaceholderScreen();
+          case AuthStatus.autenticando:
           case AuthStatus.noAutenticado:
             return const LoginScreen();
+          case AuthStatus.autenticado:
+            return auth.plataforma == 'escritorio'
+                ? const PanelEscritorioScreen()
+                : const HomePlaceholderScreen();
         }
       },
     );
