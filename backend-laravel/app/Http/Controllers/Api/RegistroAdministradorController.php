@@ -50,7 +50,7 @@ class RegistroAdministradorController extends Controller
         // más adelante.
         if (Usuario::withTrashed()->exists()) {
             throw ValidationException::withMessages([
-                'email' => ['El sistema ya tiene usuarios configurados. Iniciá sesión o pedile a un administrador que te dé de alta.'],
+                'email' => ['El sistema ya tiene usuarios configurados. Inicie sesión o solicite a un administrador que te dé de alta.'],
             ]);
         }
 
@@ -64,7 +64,7 @@ class RegistroAdministradorController extends Controller
             // catálogo específico), no algo que este formulario pueda
             // resolver por su cuenta.
             throw ValidationException::withMessages([
-                'email' => ['Falta la configuración inicial del sistema (roles y permisos) — contactá a soporte técnico antes de continuar.'],
+                'email' => ['Falta la configuración inicial del sistema (roles y permisos) — contacte a soporte técnico antes de continuar.'],
             ]);
         }
 
