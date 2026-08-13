@@ -56,6 +56,14 @@ class AlumnosController extends Controller
                     ->where('curso_id', $cursoId)
                     ->where('estado', 'activo'));
             })
+            // Se trae acá la inscripción del ciclo lectivo ABIERTO (si
+            // tiene una) para que el listado muestre de un vistazo en
+            // qué curso está cada alumno hoy, sin tener que abrir el
+            // legajo completo (`mostrar()`) uno por uno — ver
+            // `formatearLegajo()`.
+            ->with(['inscripciones' => fn ($q) => $q
+                ->whereHas('cicloLectivo', fn ($q2) => $q2->where('estado', 'abierto'))
+                ->with(['curso.nivel', 'curso.division'])])
             ->orderBy('apellido')
             ->orderBy('nombre')
             ->get();
@@ -92,6 +100,19 @@ class AlumnosController extends Controller
                 ])->values(),
             ],
         ]);
+    }
+
+    /**
+     * Legajos dados de baja — mismo razonamiento que
+     * `UsuariosController::eliminados()` (pedido explícito de la
+     * cátedra: la baja lógica tiene que poder revertirse eligiendo de
+     * una lista).
+     */
+    public function eliminados(): JsonResponse
+    {
+        $alumnos = Alumno::onlyTrashed()->orderBy('apellido')->orderBy('nombre')->get();
+
+        return response()->json(['data' => $alumnos->map(fn (Alumno $a) => $this->formatearLegajo($a))->values()]);
     }
 
     public function actualizar(ActualizarAlumnoRequest $request, Alumno $alumno): JsonResponse
@@ -166,7 +187,7 @@ class AlumnosController extends Controller
 
     private function formatearLegajo(Alumno $alumno): array
     {
-        return [
+        $datos = [
             'id_alumno' => $alumno->id_alumno,
             'nombre' => $alumno->nombre,
             'apellido' => $alumno->apellido,
@@ -174,5 +195,23 @@ class AlumnosController extends Controller
             'fecha_nacimiento' => $alumno->fecha_nacimiento?->toDateString(),
             'fecha_ingreso_institucion' => $alumno->fecha_ingreso_institucion?->toDateString(),
         ];
+
+        // Solo presente cuando `index()` precargó la relación filtrada
+        // por ciclo abierto (ver arriba) — `mostrar()`/`crear()`/
+        // `actualizar()`/`restaurar()` no la tocan, así que no rompen.
+        if ($alumno->relationLoaded('inscripciones')) {
+            $inscripcionActual = $alumno->inscripciones->first();
+            $datos['inscripcion_actual'] = $inscripcionActual === null ? null : [
+                'id_inscripcion' => $inscripcionActual->id_inscripcion,
+                'curso_id' => $inscripcionActual->curso_id,
+                'curso' => $inscripcionActual->curso
+                    ? trim(($inscripcionActual->curso->nivel?->nombre ?? '').' '.($inscripcionActual->curso->division?->nombre ?? ''))
+                    : null,
+                'condicion' => $inscripcionActual->condicion,
+                'estado' => $inscripcionActual->estado,
+            ];
+        }
+
+        return $datos;
     }
 }

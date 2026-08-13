@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AsistenciaController;
 use App\Http\Controllers\Api\AusenciasDocentesController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CierreCicloController;
+use App\Http\Controllers\Api\CiclosLectivosController;
 use App\Http\Controllers\Api\DesenlacesController;
 use App\Http\Controllers\Api\JustificacionesController;
 use App\Http\Controllers\Api\ReportesController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\Api\IngresantesController;
 use App\Http\Controllers\Api\GruposEdFisicaController;
 use App\Http\Controllers\Api\GruposTallerController;
 use App\Http\Controllers\Api\DistribucionEspecialidadesController;
+use App\Http\Controllers\Api\PermisosController;
 use App\Http\Controllers\Api\RolesController;
 use App\Http\Controllers\Api\UsuariosController;
 use App\Http\Controllers\Api\NivelesController;
@@ -112,6 +114,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/institucion', [InstitucionController::class, 'mostrar']);
         Route::put('/institucion', [InstitucionController::class, 'actualizar']);
 
+        // Alta del PRIMER ciclo lectivo de una instalación nueva — ver
+        // el docblock de CiclosLectivosController. Los siguientes NO
+        // pasan por acá: se crean cerrando el actual (Fase 1) y
+        // abriendo el próximo (Fase 3, /abrir-siguiente más abajo).
+        Route::post('/ciclos-lectivos', [CiclosLectivosController::class, 'crear']);
+        Route::get('/ciclos-lectivos', [CiclosLectivosController::class, 'index']);
+
         Route::post('/ciclos-lectivos/{ciclo}/cerrar', [CierreCicloController::class, 'cerrar']);
         Route::post('/ciclos-lectivos/{ciclo}/ingresantes', [IngresantesController::class, 'crear']);
         Route::post('/ciclos-lectivos/{ciclo}/abrir-siguiente', [AperturaCicloController::class, 'abrir']);
@@ -139,6 +148,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('/ciclos-lectivos/{ciclo}/cursos', [CursosController::class, 'crear']);
         Route::get('/ciclos-lectivos/{ciclo}/cursos', [CursosController::class, 'index']);
+        Route::get('/ciclos-lectivos/{ciclo}/cursos/eliminados', [CursosController::class, 'eliminados']);
         Route::put('/cursos/{curso}', [CursosController::class, 'actualizar']);
         Route::delete('/cursos/{curso}', [CursosController::class, 'eliminar']);
         Route::patch('/cursos/{curso}/restaurar', [CursosController::class, 'restaurar']);
@@ -149,8 +159,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/materias-taller/{materiaTaller}', [MateriasTallerController::class, 'eliminar']);
         Route::patch('/materias-taller/{materiaTaller}/restaurar', [MateriasTallerController::class, 'restaurar']);
 
+        // Catálogo fijo — la pantalla "Roles y permisos" lo pide una
+        // vez para armar el checklist de permisos de cada rol.
+        Route::get('/permisos', [PermisosController::class, 'index']);
+
         Route::post('/roles', [RolesController::class, 'crear']);
         Route::get('/roles', [RolesController::class, 'index']);
+        Route::get('/roles/eliminados', [RolesController::class, 'eliminados']);
         Route::put('/roles/{rol}', [RolesController::class, 'actualizar']);
         Route::delete('/roles/{rol}', [RolesController::class, 'eliminar']);
         Route::patch('/roles/{rol}/restaurar', [RolesController::class, 'restaurar']);
@@ -158,6 +173,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('/usuarios', [UsuariosController::class, 'crear']);
         Route::get('/usuarios', [UsuariosController::class, 'index']);
+        Route::get('/usuarios/eliminados', [UsuariosController::class, 'eliminados']);
         Route::put('/usuarios/{usuario}', [UsuariosController::class, 'actualizar']);
         Route::delete('/usuarios/{usuario}', [UsuariosController::class, 'eliminar']);
         Route::patch('/usuarios/{usuario}/restaurar', [UsuariosController::class, 'restaurar']);
@@ -165,12 +181,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('/niveles', [NivelesController::class, 'crear']);
         Route::get('/niveles', [NivelesController::class, 'index']);
+        Route::get('/niveles/eliminados', [NivelesController::class, 'eliminados']);
         Route::put('/niveles/{nivel}', [NivelesController::class, 'actualizar']);
         Route::delete('/niveles/{nivel}', [NivelesController::class, 'eliminar']);
         Route::patch('/niveles/{nivel}/restaurar', [NivelesController::class, 'restaurar']);
 
         Route::post('/divisiones', [DivisionesController::class, 'crear']);
         Route::get('/divisiones', [DivisionesController::class, 'index']);
+        Route::get('/divisiones/eliminados', [DivisionesController::class, 'eliminados']);
         Route::put('/divisiones/{division}', [DivisionesController::class, 'actualizar']);
         Route::delete('/divisiones/{division}', [DivisionesController::class, 'eliminar']);
         Route::patch('/divisiones/{division}/restaurar', [DivisionesController::class, 'restaurar']);
@@ -195,6 +213,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/dias-sin-clases/{diaSinClase}', [DiasSinClasesController::class, 'actualizar']);
         Route::delete('/dias-sin-clases/{diaSinClase}', [DiasSinClasesController::class, 'eliminar']);
 
+        // Literal ANTES de la ruta con {alumno} — si no, Laravel intenta
+        // resolver "eliminados" como un id de alumno vía route-model-binding.
+        Route::get('/alumnos/eliminados', [AlumnosController::class, 'eliminados']);
         Route::get('/alumnos/{alumno}', [AlumnosController::class, 'mostrar']);
         Route::post('/alumnos', [AlumnosController::class, 'crear']);
         Route::get('/alumnos', [AlumnosController::class, 'index']);

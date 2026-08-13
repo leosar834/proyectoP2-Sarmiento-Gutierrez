@@ -70,6 +70,27 @@ class CursosController extends Controller
         return response()->json(['data' => $cursos->map(fn (Curso $c) => $this->formatear($c))->values()]);
     }
 
+    /**
+     * Cursos dados de baja de este ciclo — mismo razonamiento que
+     * `NivelesController::eliminados()` (pedido explícito de la
+     * cátedra: la baja lógica tiene que poder revertirse eligiendo de
+     * una lista, no solo como sugerencia dentro de un error).
+     */
+    public function eliminados(CicloLectivo $ciclo): JsonResponse
+    {
+        $cursos = Curso::onlyTrashed()
+            ->with(['nivel', 'division'])
+            ->where('ciclo_lectivo_id', $ciclo->id_ciclo_lectivo)
+            ->get()
+            ->sortBy([
+                fn ($c) => $c->nivel->numero_orden,
+                fn ($c) => $c->division->nombre,
+            ])
+            ->values();
+
+        return response()->json(['data' => $cursos->map(fn (Curso $c) => $this->formatear($c))->values()]);
+    }
+
     public function actualizar(ActualizarCursoRequest $request, Curso $curso): JsonResponse
     {
         if ($curso->cicloLectivo->estado !== 'abierto') {

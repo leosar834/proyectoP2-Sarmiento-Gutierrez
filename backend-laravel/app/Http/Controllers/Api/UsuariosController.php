@@ -55,6 +55,20 @@ class UsuariosController extends Controller
         ]);
     }
 
+    /**
+     * Usuarios dados de baja — mismo razonamiento que
+     * `RolesController::eliminados()` (pedido explícito de la cátedra:
+     * la baja lógica tiene que poder revertirse eligiendo de una lista).
+     */
+    public function eliminados(): JsonResponse
+    {
+        $usuarios = Usuario::onlyTrashed()->with('roles')->get();
+
+        return response()->json([
+            'data' => $usuarios->map(fn (Usuario $usuario) => $this->formatearUsuario($usuario))->values(),
+        ]);
+    }
+
     public function actualizar(ActualizarUsuarioRequest $request, Usuario $usuario): JsonResponse
     {
         $emailNuevo = $request->validated('email');

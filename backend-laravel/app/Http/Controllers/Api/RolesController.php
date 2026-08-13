@@ -44,6 +44,21 @@ class RolesController extends Controller
         ]);
     }
 
+    /**
+     * Roles dados de baja — mismo razonamiento que
+     * `NivelesController::eliminados()` (pedido explícito de la
+     * cátedra: la baja lógica tiene que poder revertirse eligiendo de
+     * una lista).
+     */
+    public function eliminados(): JsonResponse
+    {
+        $roles = Rol::onlyTrashed()->withCount('usuarios')->with('permisos')->get();
+
+        return response()->json([
+            'data' => $roles->map(fn (Rol $rol) => $this->formatearRol($rol))->values(),
+        ]);
+    }
+
     public function actualizar(ActualizarRolRequest $request, Rol $rol): JsonResponse
     {
         $nombreNuevo = $request->validated('nombre');

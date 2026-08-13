@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/auth_provider.dart';
@@ -26,6 +27,20 @@ class AsistenciaApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
           useMaterial3: true,
         ),
+        // Toda la app está en español — esto hace que los widgets del
+        // propio framework (el selector de fecha de "Ciclo lectivo",
+        // los botones "Cancelar"/"Aceptar" de cualquier diálogo nativo,
+        // etc.) también salgan en español en vez del inglés por
+        // defecto. Un solo locale soportado a propósito: el sistema es
+        // para una institución argentina, no hace falta detectar el
+        // idioma del sistema operativo ni ofrecer alternativas.
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('es')],
+        locale: const Locale('es'),
         home: const SplashScreen(),
       ),
     );

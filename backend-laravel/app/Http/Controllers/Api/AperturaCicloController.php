@@ -110,7 +110,7 @@ class AperturaCicloController extends Controller
             throw ValidationException::withMessages([
                 'desenlaces' => [
                     "Los siguientes alumnos de último año quedaron en 'promociona' sin año "
-                    . "siguiente posible — volvé a la Fase 2 y corregilos a 'egresa' o 'recursa': "
+                    . "siguiente posible — vuelva a la Fase 2 y corregilos a 'egresa' o 'recursa': "
                     . implode('; ', $conflictos),
                 ],
             ]);

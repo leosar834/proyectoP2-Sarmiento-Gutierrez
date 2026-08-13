@@ -6,7 +6,14 @@ import '../providers/auth_provider.dart';
 import '../services/api_exception.dart';
 import '../services/institucion_repository.dart';
 import '../theme/app_colors.dart';
+import 'alumnos_screen.dart';
+import 'ciclo_lectivo_screen.dart';
+import 'cursos_screen.dart';
+import 'divisiones_screen.dart';
 import 'institucion_screen.dart';
+import 'niveles_screen.dart';
+import 'roles_screen.dart';
+import 'usuarios_screen.dart';
 
 /// Casa del panel de administración de escritorio: menú lateral fijo +
 /// contenido que cambia de sección. Reemplaza a `HomePlaceholderScreen`
@@ -14,13 +21,18 @@ import 'institucion_screen.dart';
 /// móvil sigue usando el placeholder, porque su pantalla de inicio real
 /// es "tomar asistencia" (RF2), un desarrollo aparte.
 ///
-/// Solo "Inicio" e "Institución" tienen contenido real hoy — el resto de
-/// las secciones (Usuarios, Roles, Alumnos, Cursos, Ciclo Lectivo,
-/// Reportes, Alertas) ya tienen su API lista en el backend
-/// (`permiso:gestionar_sistema`), pero construir cada pantalla es
-/// trabajo aparte; se muestran acá como navegación real con un
-/// contenido "Próximamente" en vez de placeholders inertes, para que el
-/// menú completo ya esté a la vista de quien use el sistema.
+/// "Inicio", "Institución", "Ciclo lectivo", "Niveles" y "Divisiones"
+/// tienen contenido real hoy — el resto de las secciones (Usuarios,
+/// Roles, Alumnos, Cursos, Reportes, Alertas) ya tienen su API lista en
+/// el backend (`permiso:gestionar_sistema`), pero construir cada
+/// pantalla es trabajo aparte; se muestran acá como navegación real con
+/// un contenido "Próximamente" en vez de placeholders inertes, para que
+/// el menú completo ya esté a la vista de quien use el sistema.
+///
+/// "Niveles" y "Divisiones" van ANTES que "Cursos" a propósito, aunque
+/// esta última todavía sea "Próximamente": un curso es nivel + división
+/// + ciclo lectivo, así que hacen falta estos dos catálogos cargados
+/// antes de que la pantalla de Cursos tenga algo de qué elegir.
 class PanelEscritorioScreen extends StatefulWidget {
   const PanelEscritorioScreen({super.key});
 
@@ -33,6 +45,8 @@ enum _Seccion {
   usuarios,
   roles,
   alumnos,
+  niveles,
+  divisiones,
   cursos,
   cicloLectivo,
   reportes,
@@ -69,26 +83,43 @@ const _itemsMenu = [
     seccion: _Seccion.usuarios,
     etiqueta: 'Usuarios',
     icono: Icons.people_outline,
+    disponible: true,
   ),
   _ItemMenu(
     seccion: _Seccion.roles,
     etiqueta: 'Roles y permisos',
     icono: Icons.admin_panel_settings_outlined,
+    disponible: true,
   ),
   _ItemMenu(
     seccion: _Seccion.alumnos,
     etiqueta: 'Alumnos',
     icono: Icons.school_outlined,
+    disponible: true,
+  ),
+  _ItemMenu(
+    seccion: _Seccion.niveles,
+    etiqueta: 'Niveles',
+    icono: Icons.stairs_outlined,
+    disponible: true,
+  ),
+  _ItemMenu(
+    seccion: _Seccion.divisiones,
+    etiqueta: 'Divisiones',
+    icono: Icons.view_column_outlined,
+    disponible: true,
   ),
   _ItemMenu(
     seccion: _Seccion.cursos,
     etiqueta: 'Cursos',
     icono: Icons.meeting_room_outlined,
+    disponible: true,
   ),
   _ItemMenu(
     seccion: _Seccion.cicloLectivo,
     etiqueta: 'Ciclo lectivo',
     icono: Icons.event_repeat_outlined,
+    disponible: true,
   ),
   _ItemMenu(
     seccion: _Seccion.reportes,
@@ -177,6 +208,20 @@ class _PanelEscritorioScreenState extends State<PanelEscritorioScreen> {
           onActualizada: (institucion) =>
               setState(() => _institucion = institucion),
         );
+      case _Seccion.cicloLectivo:
+        return const CicloLectivoScreen();
+      case _Seccion.niveles:
+        return const NivelesScreen();
+      case _Seccion.divisiones:
+        return const DivisionesScreen();
+      case _Seccion.cursos:
+        return const CursosScreen();
+      case _Seccion.roles:
+        return const RolesScreen();
+      case _Seccion.usuarios:
+        return const UsuariosScreen();
+      case _Seccion.alumnos:
+        return const AlumnosScreen();
       default:
         final item =
             _itemsMenu.firstWhere((item) => item.seccion == _seccionActual);

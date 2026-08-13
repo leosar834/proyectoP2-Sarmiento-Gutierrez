@@ -19,6 +19,7 @@ import 'api_exception.dart';
 /// El token vive acá en memoria (`setToken`), no en storage — quien
 /// decide qué token corresponde y cuándo persistirlo es
 /// `AuthRepository`/`AuthProvider` (ver lib/providers/auth_provider.dart).
+
 class ApiClient {
   ApiClient({http.Client? httpClient}) : _httpClient = httpClient ?? http.Client();
 

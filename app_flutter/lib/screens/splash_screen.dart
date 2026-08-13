@@ -31,6 +31,7 @@ import 'panel_escritorio_screen.dart';
 /// por qué. `LoginScreen` ya tiene su propio spinner en el botón
 /// (`context.watch<AuthProvider>().status == AuthStatus.autenticando`),
 /// así que no hace falta un `_CargandoScreen` aparte para ese momento.
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 

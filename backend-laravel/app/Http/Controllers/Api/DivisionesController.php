@@ -34,6 +34,17 @@ class DivisionesController extends Controller
         return response()->json(['data' => $divisiones->map(fn (Division $d) => $this->formatear($d))->values()]);
     }
 
+    /**
+     * Divisiones dadas de baja (SoftDeletes) — ver el mismo
+     * razonamiento en `NivelesController::eliminados()`.
+     */
+    public function eliminados(): JsonResponse
+    {
+        $divisiones = Division::onlyTrashed()->orderBy('nombre')->get();
+
+        return response()->json(['data' => $divisiones->map(fn (Division $d) => $this->formatear($d))->values()]);
+    }
+
     public function actualizar(ActualizarDivisionRequest $request, Division $division): JsonResponse
     {
         $nombreNuevo = $request->validated('nombre');

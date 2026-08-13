@@ -46,6 +46,14 @@ dependencies:
   # iOS/macOS, Keystore en Android, Credential Locker en Windows, etc.).
   flutter_secure_storage: ^9.2.2
 
+  # Traducciones de los widgets de Material (el selector de fecha de
+  # "Ciclo lectivo", y cualquier otro widget del framework que use texto
+  # fijo) — sin esto, `showDatePicker` sale en inglés sin importar el
+  # idioma del resto de la app. Viene con el SDK de Flutter, no tiene
+  # versión propia (ver main.dart para dónde se configura el locale).
+  flutter_localizations:
+    sdk: flutter
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

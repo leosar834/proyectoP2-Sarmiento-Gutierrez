@@ -38,6 +38,23 @@ class NivelesController extends Controller
         return response()->json(['data' => $niveles->map(fn (Nivel $n) => $this->formatear($n))->values()]);
     }
 
+    /**
+     * Niveles dados de baja (SoftDeletes) — separado de `index()` a
+     * propósito, para no mezclar en la misma lista lo activo con lo
+     * dado de baja. Existe para que el administrador pueda ver y
+     * restaurar un nivel eliminado sin depender de chocar primero con
+     * el mensaje de "ya existe pero está dado de baja" al intentar
+     * crear uno nuevo (pedido explícito de la cátedra: la baja lógica
+     * tiene que poder revertirse desde la propia pantalla, no solo
+     * como efecto secundario de un error).
+     */
+    public function eliminados(): JsonResponse
+    {
+        $niveles = Nivel::onlyTrashed()->orderBy('numero_orden')->get();
+
+        return response()->json(['data' => $niveles->map(fn (Nivel $n) => $this->formatear($n))->values()]);
+    }
+
     public function actualizar(ActualizarNivelRequest $request, Nivel $nivel): JsonResponse
     {
         $ordenNuevo = $request->validated('numero_orden');
