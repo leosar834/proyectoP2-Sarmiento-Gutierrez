@@ -63,6 +63,22 @@ class GruposEdFisicaController extends Controller
     }
 
     /**
+     * Grupos de ed. física dados de baja de este ciclo — mismo
+     * razonamiento que `GruposTallerController::eliminados()`.
+     */
+    public function eliminados(CicloLectivo $ciclo): JsonResponse
+    {
+        $grupos = GrupoEdFisica::onlyTrashed()
+            ->where('ciclo_lectivo_id', $ciclo->id_ciclo_lectivo)
+            ->withCount('inscripciones')
+            ->get();
+
+        return response()->json([
+            'data' => $grupos->map(fn ($g) => $this->formatearGrupo($g))->values(),
+        ]);
+    }
+
+    /**
      * Asignación por lote: REEMPLAZA (no acumula) la membresía de
      * educación física de cada inscripción encontrada. A diferencia de
      * taller (donde un alumno puede estar en varios grupos a la vez,
@@ -211,10 +227,7 @@ class GruposEdFisicaController extends Controller
     }
 
     /**
-     * Restaura un grupo de ed. física dado de baja — ver el
-     * razonamiento en `UsuariosController::restaurar()`. Con guard de
-     * ciclo, mismo criterio que `actualizar()`/`eliminar()` en este
-     * mismo controller.
+     * Restaura un grupo de ed. física dado de baja
      */
     public function restaurar(int $grupo): JsonResponse
     {

@@ -15,6 +15,7 @@ class InstitucionResource extends JsonResource
             'cue' => $this->cue,
             'localidad' => $this->localidad,
             'provincia' => $this->provincia,
+            'modalidad' => $this->modalidad,
         ];
     }
 }

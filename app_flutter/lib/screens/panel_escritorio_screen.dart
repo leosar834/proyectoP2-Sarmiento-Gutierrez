@@ -10,7 +10,11 @@ import 'alumnos_screen.dart';
 import 'ciclo_lectivo_screen.dart';
 import 'cursos_screen.dart';
 import 'divisiones_screen.dart';
+import 'especialidades_screen.dart';
+import 'grupos_ed_fisica_screen.dart';
+import 'grupos_taller_screen.dart';
 import 'institucion_screen.dart';
+import 'materias_taller_screen.dart';
 import 'niveles_screen.dart';
 import 'roles_screen.dart';
 import 'usuarios_screen.dart';
@@ -21,10 +25,12 @@ import 'usuarios_screen.dart';
 /// móvil sigue usando el placeholder, porque su pantalla de inicio real
 /// es "tomar asistencia" (RF2), un desarrollo aparte.
 ///
-/// "Inicio", "Institución", "Ciclo lectivo", "Niveles" y "Divisiones"
-/// tienen contenido real hoy — el resto de las secciones (Usuarios,
-/// Roles, Alumnos, Cursos, Reportes, Alertas) ya tienen su API lista en
-/// el backend (`permiso:gestionar_sistema`), pero construir cada
+/// "Inicio", "Institución", "Ciclo lectivo", "Niveles", "Divisiones",
+/// "Cursos", "Usuarios", "Roles", "Alumnos", "Especialidades", "Materias
+/// de Taller", "Grupos de Taller" y "Grupos de Ed. Física" tienen
+/// contenido real hoy — solo "Reportes" y "Alertas" siguen pendientes:
+/// ya tienen su API lista en el backend (`permiso:gestionar_sistema`
+/// para gestión, RF asistencia para el resto), pero construir cada
 /// pantalla es trabajo aparte; se muestran acá como navegación real con
 /// un contenido "Próximamente" en vez de placeholders inertes, para que
 /// el menú completo ya esté a la vista de quien use el sistema.
@@ -48,6 +54,10 @@ enum _Seccion {
   niveles,
   divisiones,
   cursos,
+  especialidades,
+  materiasTaller,
+  gruposTaller,
+  gruposEdFisica,
   cicloLectivo,
   reportes,
   alertas,
@@ -116,6 +126,30 @@ const _itemsMenu = [
     disponible: true,
   ),
   _ItemMenu(
+    seccion: _Seccion.especialidades,
+    etiqueta: 'Especialidades',
+    icono: Icons.workspace_premium_outlined,
+    disponible: true,
+  ),
+  _ItemMenu(
+    seccion: _Seccion.materiasTaller,
+    etiqueta: 'Materias de Taller',
+    icono: Icons.construction_outlined,
+    disponible: true,
+  ),
+  _ItemMenu(
+    seccion: _Seccion.gruposTaller,
+    etiqueta: 'Grupos de Taller',
+    icono: Icons.groups_outlined,
+    disponible: true,
+  ),
+  _ItemMenu(
+    seccion: _Seccion.gruposEdFisica,
+    etiqueta: 'Grupos de Ed. Física',
+    icono: Icons.sports_soccer_outlined,
+    disponible: true,
+  ),
+  _ItemMenu(
     seccion: _Seccion.cicloLectivo,
     etiqueta: 'Ciclo lectivo',
     icono: Icons.event_repeat_outlined,
@@ -138,6 +172,29 @@ const _itemsMenu = [
     disponible: true,
   ),
 ];
+
+/// Filtra `_itemsMenu` según la modalidad de la institución: "Materias de
+/// Taller" y "Grupos de Taller" solo tienen sentido para una institución
+/// técnico-profesional con contraturnos, así que se ocultan del menú
+/// cuando `institucion.tieneTalleres == false` (secundaria común con
+/// orientaciones). Es puramente cosmético — ver
+/// `Institucion.modalidad`/`Institucion.tieneTalleres` y el docblock de la
+/// migración `add_modalidad_to_institucion`: el backend sigue aceptando
+/// esas operaciones sin importar la modalidad.
+///
+/// Mientras `institucion` es `null` (todavía cargando) se muestran todos
+/// los ítems, para no hacer parpadear el menú ocultando y volviendo a
+/// mostrar secciones apenas termina de cargar.
+List<_ItemMenu> _itemsVisibles(Institucion? institucion) {
+  if (institucion == null || institucion.tieneTalleres) {
+    return _itemsMenu;
+  }
+  return _itemsMenu
+      .where((item) =>
+          item.seccion != _Seccion.materiasTaller &&
+          item.seccion != _Seccion.gruposTaller)
+      .toList(growable: false);
+}
 
 class _PanelEscritorioScreenState extends State<PanelEscritorioScreen> {
   _Seccion _seccionActual = _Seccion.inicio;
@@ -216,6 +273,14 @@ class _PanelEscritorioScreenState extends State<PanelEscritorioScreen> {
         return const DivisionesScreen();
       case _Seccion.cursos:
         return const CursosScreen();
+      case _Seccion.especialidades:
+        return const EspecialidadesScreen();
+      case _Seccion.materiasTaller:
+        return const MateriasTallerScreen();
+      case _Seccion.gruposTaller:
+        return const GruposTallerScreen();
+      case _Seccion.gruposEdFisica:
+        return const GruposEdFisicaScreen();
       case _Seccion.roles:
         return const RolesScreen();
       case _Seccion.usuarios:
@@ -293,7 +358,7 @@ class _MenuLateral extends StatelessWidget {
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                children: _itemsMenu.map((item) {
+                children: _itemsVisibles(institucion).map((item) {
                   final seleccionado = item.seccion == seccionActual;
                   return _ItemMenuTile(
                     item: item,

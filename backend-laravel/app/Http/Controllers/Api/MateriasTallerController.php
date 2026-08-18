@@ -49,6 +49,24 @@ class MateriasTallerController extends Controller
         return response()->json(['data' => $materiasTaller->map(fn (MateriaTaller $m) => $this->formatear($m))->values()]);
     }
 
+    /**
+     * Materias de taller dadas de baja — mismo razonamiento que
+     * `NivelesController::eliminados()`. A diferencia de Especialidad,
+     * acá no hay atajo "(id X)" al crear (no hay unique key sobre
+     * `nombre`, ver el docblock de esta clase) — este listado es la
+     * ÚNICA forma de restaurar una materia de taller borrada.
+     */
+    public function eliminados(Request $request): JsonResponse
+    {
+        $materiasTaller = MateriaTaller::onlyTrashed()
+            ->with('especialidad')
+            ->when($request->query('especialidad_id'), fn ($q, $especialidadId) => $q->where('especialidad_id', $especialidadId))
+            ->orderBy('nombre')
+            ->get();
+
+        return response()->json(['data' => $materiasTaller->map(fn (MateriaTaller $m) => $this->formatear($m))->values()]);
+    }
+
     public function actualizar(ActualizarMateriaTallerRequest $request, MateriaTaller $materiaTaller): JsonResponse
     {
         $materiaTaller->update($request->validated());

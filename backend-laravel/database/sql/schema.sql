@@ -164,9 +164,13 @@ CREATE TABLE usuarios_cursos (
     CONSTRAINT fk_uc_curso   FOREIGN KEY (curso_id)   REFERENCES cursos(id_curso)     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- `especialidad_id` es NULL para materias de ciclo básico (1°/2° año):
+-- en las escuelas técnico-profesionales la orientación recién se define
+-- a partir de 3°/4° año, así que esas materias todavía no tienen una
+-- especialidad asignada.
 CREATE TABLE materias_taller (
     id_materia_taller INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    especialidad_id    INT UNSIGNED NOT NULL,
+    especialidad_id    INT UNSIGNED NULL,
     nombre             VARCHAR(100) NOT NULL,
     regimen_cursada    ENUM('anual','trimestral','semestral','personalizado') NOT NULL,
     created_at         DATETIME NULL,
@@ -854,20 +858,26 @@ CREATE TABLE ausencias_docentes (
 -- 16. TABLA: FICHA DE LA INSTITUCIÓN
 -- =====================================================================
 -- Identificación de la (única) institución que corre este sistema:
--- nombre, domicilio, CUE (Clave Única de Establecimiento) y ubicación.
--- No es un parámetro de comportamiento del sistema (a diferencia de
--- `configuraciones`, sección 2) — es simplemente el dato con el que el
--- administrador identifica el establecimiento que está gestionando,
--- para mostrarlo en el panel de administración y en reportes/planillas
--- impresas.
+-- nombre, domicilio, CUE (Clave Única de Establecimiento), ubicación y
+-- modalidad. La identificación (nombre/domicilio/CUE/localidad/
+-- provincia) no es un parámetro de comportamiento del sistema (a
+-- diferencia de `configuraciones`, sección 2) — es simplemente el dato
+-- con el que el administrador identifica el establecimiento que está
+-- gestionando. `modalidad` sí es un parámetro de presentación: declara
+-- si la institución es técnico-profesional con talleres en contraturno
+-- o una secundaria común con orientaciones (sin talleres) — la app usa
+-- este valor para ocultar "Materias de Taller"/"Grupos de Taller" del
+-- menú cuando no aplican (ver `PanelEscritorioScreen` en app_flutter),
+-- sin bloquear nada del lado del backend.
 --
 -- Fila única, mismo patrón que `configuraciones` (sección 2: `DEFAULT 1`
 -- + CHECK obliga id_institucion = 1), pero SIN INSERT de default acá —
 -- a diferencia de `configuraciones`, no hay un valor razonable por
--- defecto para el nombre/domicilio/CUE de una institución real. La fila
--- la crea `RegistroAdministradorController::crear()`, en la misma
--- transacción del alta del primer administrador: el sistema exige estos
--- datos desde el primer momento, no los deja para después.
+-- defecto para el nombre/domicilio/CUE de una institución real (sí lo
+-- hay para `modalidad`, ver su DEFAULT abajo). La fila la crea
+-- `RegistroAdministradorController::crear()`, en la misma transacción
+-- del alta del primer administrador: el sistema exige estos datos desde
+-- el primer momento, no los deja para después.
 CREATE TABLE institucion (
     id_institucion  INT UNSIGNED PRIMARY KEY DEFAULT 1,
     nombre          VARCHAR(150) NOT NULL,
@@ -875,6 +885,9 @@ CREATE TABLE institucion (
     cue             VARCHAR(20) NOT NULL COMMENT 'Clave Única de Establecimiento.',
     localidad       VARCHAR(100) NOT NULL,
     provincia       VARCHAR(100) NOT NULL,
+    modalidad       ENUM('tecnico_profesional_contraturno', 'secundaria_comun_orientaciones')
+                        NOT NULL DEFAULT 'tecnico_profesional_contraturno'
+                        COMMENT 'Determina si la app muestra Materias de Taller/Grupos de Taller.',
     created_at      DATETIME NULL,
     updated_at      DATETIME NULL,
     CONSTRAINT chk_institucion_fila_unica CHECK (id_institucion = 1)

@@ -131,6 +131,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('/ciclos-lectivos/{ciclo}/grupos-ed-fisica', [GruposEdFisicaController::class, 'crear']);
         Route::get('/ciclos-lectivos/{ciclo}/grupos-ed-fisica', [GruposEdFisicaController::class, 'index']);
+        Route::get('/ciclos-lectivos/{ciclo}/grupos-ed-fisica/eliminados', [GruposEdFisicaController::class, 'eliminados']);
         Route::put('/grupos-ed-fisica/{grupo}', [GruposEdFisicaController::class, 'actualizar']);
         Route::delete('/grupos-ed-fisica/{grupo}', [GruposEdFisicaController::class, 'eliminar']);
         Route::patch('/grupos-ed-fisica/{grupo}/restaurar', [GruposEdFisicaController::class, 'restaurar']);
@@ -139,11 +140,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('/ciclos-lectivos/{ciclo}/grupos-taller', [GruposTallerController::class, 'crear']);
         Route::get('/ciclos-lectivos/{ciclo}/grupos-taller', [GruposTallerController::class, 'index']);
+        Route::get('/ciclos-lectivos/{ciclo}/grupos-taller/eliminados', [GruposTallerController::class, 'eliminados']);
         Route::put('/grupos-taller/{grupo}', [GruposTallerController::class, 'actualizar']);
         Route::delete('/grupos-taller/{grupo}', [GruposTallerController::class, 'eliminar']);
         Route::patch('/grupos-taller/{grupo}/restaurar', [GruposTallerController::class, 'restaurar']);
 
         Route::post('/grupos-taller/{grupo}/asignar-lote', [GruposTallerController::class, 'asignarLote']);
+        Route::get('/grupos-taller/{grupo}/alumnos', [GruposTallerController::class, 'alumnos']);
+        Route::delete('/grupos-taller/{grupo}/alumnos/{inscripcion}', [GruposTallerController::class, 'desasignarAlumno']);
         Route::post('/ciclos-lectivos/{ciclo}/inscripciones/asignar-especialidad-lote', [DistribucionEspecialidadesController::class, 'asignarLote']);
 
         Route::post('/ciclos-lectivos/{ciclo}/cursos', [CursosController::class, 'crear']);
@@ -155,6 +159,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('/materias-taller', [MateriasTallerController::class, 'crear']);
         Route::get('/materias-taller', [MateriasTallerController::class, 'index']);
+        Route::get('/materias-taller/eliminados', [MateriasTallerController::class, 'eliminados']);
         Route::put('/materias-taller/{materiaTaller}', [MateriasTallerController::class, 'actualizar']);
         Route::delete('/materias-taller/{materiaTaller}', [MateriasTallerController::class, 'eliminar']);
         Route::patch('/materias-taller/{materiaTaller}/restaurar', [MateriasTallerController::class, 'restaurar']);
@@ -195,6 +200,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('/especialidades', [EspecialidadesController::class, 'crear']);
         Route::get('/especialidades', [EspecialidadesController::class, 'index']);
+        Route::get('/especialidades/eliminados', [EspecialidadesController::class, 'eliminados']);
         Route::put('/especialidades/{especialidad}', [EspecialidadesController::class, 'actualizar']);
         Route::delete('/especialidades/{especialidad}', [EspecialidadesController::class, 'eliminar']);
         Route::patch('/especialidades/{especialidad}/restaurar', [EspecialidadesController::class, 'restaurar']);

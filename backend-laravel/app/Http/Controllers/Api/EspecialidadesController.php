@@ -37,6 +37,20 @@ class EspecialidadesController extends Controller
         return response()->json(['data' => $especialidades->map(fn (Especialidad $e) => $this->formatear($e))->values()]);
     }
 
+    /**
+     * Especialidades dadas de baja — mismo razonamiento que
+     * `NivelesController::eliminados()` (pedido explícito de la
+     * cátedra: la baja lógica tiene que poder revertirse eligiendo de
+     * una lista, no solo a través del atajo "(id X)" que ofrece
+     * `verificarNombreDisponible()` cuando choca un nombre repetido).
+     */
+    public function eliminados(): JsonResponse
+    {
+        $especialidades = Especialidad::onlyTrashed()->orderBy('nombre')->get();
+
+        return response()->json(['data' => $especialidades->map(fn (Especialidad $e) => $this->formatear($e))->values()]);
+    }
+
     public function actualizar(ActualizarEspecialidadRequest $request, Especialidad $especialidad): JsonResponse
     {
         $nombreNuevo = $request->validated('nombre');
@@ -57,8 +71,7 @@ class EspecialidadesController extends Controller
     }
 
     /**
-     * Restaura una especialidad dada de baja — ver el razonamiento en
-     * `UsuariosController::restaurar()`.
+     * Restaura una especialidad dada de baja
      */
     public function restaurar(int $especialidad): JsonResponse
     {

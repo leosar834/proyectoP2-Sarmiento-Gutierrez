@@ -38,6 +38,11 @@ class _InstitucionScreenState extends State<InstitucionScreen> {
   final _localidadController = TextEditingController();
   final _provinciaController = TextEditingController();
 
+  // Sin controller de texto porque no es un campo libre — arranca en
+  // null solo hasta que `_cargar()` trae el valor real; nunca se manda
+  // así al backend (`ActualizarInstitucionRequest` lo exige siempre).
+  String? _modalidad;
+
   late final InstitucionRepository _repositorio;
 
   bool _cargando = true;
@@ -77,7 +82,10 @@ class _InstitucionScreenState extends State<InstitucionScreen> {
       _localidadController.text = institucion.localidad;
       _provinciaController.text = institucion.provincia;
       if (!mounted) return;
-      setState(() => _cargando = false);
+      setState(() {
+        _modalidad = institucion.modalidad;
+        _cargando = false;
+      });
     } on ApiException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -112,6 +120,10 @@ class _InstitucionScreenState extends State<InstitucionScreen> {
         cue: _cueController.text.trim(),
         localidad: _localidadController.text.trim(),
         provincia: _provinciaController.text.trim(),
+        // Siempre no-null acá: el formulario recién se muestra después
+        // de que `_cargar()` lo haya poblado (ver el gate `_cargando`
+        // en build()).
+        modalidad: _modalidad!,
       );
 
       widget.onActualizada?.call(institucion);
@@ -247,6 +259,45 @@ class _InstitucionScreenState extends State<InstitucionScreen> {
                 onFieldSubmitted: (_) => _guardar(),
               ),
               const SizedBox(height: 24),
+              const Text(
+                'Modalidad',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textoPrincipal,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Define qué secciones te conviene ver en el menú — se '
+                'puede cambiar en cualquier momento, no borra datos ya '
+                'cargados.',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.textoSecundario,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _OpcionModalidad(
+                valor: 'tecnico_profesional_contraturno',
+                grupoValor: _modalidad,
+                titulo: 'Técnico-profesional con contraturnos',
+                descripcion: 'Tiene talleres — muestra "Materias de '
+                    'Taller" y "Grupos de Taller" en el menú.',
+                onSeleccionar: (v) => setState(() => _modalidad = v),
+              ),
+              const SizedBox(height: 8),
+              _OpcionModalidad(
+                valor: 'secundaria_comun_orientaciones',
+                grupoValor: _modalidad,
+                titulo: 'Secundaria común con orientaciones',
+                descripcion: 'Sin talleres — oculta esas dos secciones '
+                    'del menú. Las orientaciones se siguen cargando en '
+                    '"Especialidades".',
+                onSeleccionar: (v) => setState(() => _modalidad = v),
+              ),
+              const SizedBox(height: 24),
               SizedBox(
                 height: 46,
                 child: ElevatedButton.icon(
@@ -278,6 +329,84 @@ class _InstitucionScreenState extends State<InstitucionScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Una tarjeta seleccionable de "Modalidad" — mismo look que el resto
+/// de las tarjetas de la app (`AppColors.tarjeta`/`borde`), en vez del
+/// `RadioListTile` de Material por defecto, para no romper el estilo
+/// visual del formulario.
+class _OpcionModalidad extends StatelessWidget {
+  const _OpcionModalidad({
+    required this.valor,
+    required this.grupoValor,
+    required this.titulo,
+    required this.descripcion,
+    required this.onSeleccionar,
+  });
+
+  final String valor;
+  final String? grupoValor;
+  final String titulo;
+  final String descripcion;
+  final ValueChanged<String> onSeleccionar;
+
+  @override
+  Widget build(BuildContext context) {
+    final seleccionada = valor == grupoValor;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => onSeleccionar(valor),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: seleccionada
+              ? AppColors.azulPrimario.withValues(alpha: 0.06)
+              : AppColors.tarjeta,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: seleccionada ? AppColors.azulPrimario : AppColors.borde,
+            width: seleccionada ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              seleccionada ? Icons.radio_button_checked : Icons.radio_button_off,
+              size: 20,
+              color: seleccionada ? AppColors.azulPrimario : AppColors.textoSecundario,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    titulo,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: seleccionada ? AppColors.azulPrimario : AppColors.textoPrincipal,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    descripcion,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textoSecundario,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

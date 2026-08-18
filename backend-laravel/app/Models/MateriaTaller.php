@@ -13,6 +13,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * cada taller pueda tener su propia duración (anual/trimestral/
  * semestral/personalizado), a diferencia del curso principal que no
  * tiene este dato.
+ *
+ * `especialidad_id` es nullable: las escuelas técnico-profesionales
+ * recién asignan la orientación a partir de 3°/4° año, así que las
+ * materias de ciclo básico (1°/2° año) se cargan sin especialidad. Ver
+ * la migración `make_especialidad_nullable_en_materias_taller`.
  */
 class MateriaTaller extends Model
 {

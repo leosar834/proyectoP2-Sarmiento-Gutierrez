@@ -22,6 +22,15 @@ use Illuminate\Database\Eloquent\Model;
  * la fila se EDITA — nunca se vuelve a crear — desde
  * `InstitucionController::actualizar()` (`permiso:gestionar_sistema`).
  *
+ * `modalidad` es la excepción a "solo dato de identificación": declara
+ * si la institución es técnico-profesional con talleres en contraturno
+ * o una secundaria común con orientaciones (sin talleres) — un
+ * parámetro de presentación que la app usa para ocultar "Materias de
+ * Taller"/"Grupos de Taller" del menú cuando no aplican, sin bloquear
+ * nada del lado del backend (no se le eligió al registrar el primer
+ * administrador a propósito: queda siempre editable desde
+ * "Institución", nunca fija de una sola vez).
+ *
  * `$incrementing = false`: `id_institucion` no es AUTO_INCREMENT en la
  * base (tiene `DEFAULT 1` + `CHECK id_institucion = 1`), así que
  * Eloquent no debe intentar resolverlo con `LAST_INSERT_ID()` después
@@ -45,5 +54,6 @@ class Institucion extends Model
         'cue',
         'localidad',
         'provincia',
+        'modalidad',
     ];
 }

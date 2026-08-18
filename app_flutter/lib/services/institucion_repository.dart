@@ -23,6 +23,7 @@ class InstitucionRepository {
     required String cue,
     required String localidad,
     required String provincia,
+    required String modalidad,
   }) async {
     final respuesta = await _apiClient.put('/institucion', body: {
       'nombre': nombre,
@@ -30,6 +31,7 @@ class InstitucionRepository {
       'cue': cue,
       'localidad': localidad,
       'provincia': provincia,
+      'modalidad': modalidad,
     }) as Map<String, dynamic>;
 
     return Institucion.fromJson(respuesta['data'] as Map<String, dynamic>);

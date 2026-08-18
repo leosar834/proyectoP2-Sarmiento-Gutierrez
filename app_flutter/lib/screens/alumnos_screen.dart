@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -16,6 +18,7 @@ import '../services/traslado_repository.dart';
 import '../theme/app_colors.dart';
 import '../widgets/banner_error.dart';
 import '../widgets/banner_info.dart';
+import 'inscripcion_por_curso_screen.dart';
 
 /// Sección "Alumnos" del panel de escritorio — el último paso del plan
 /// original (Ciclo lectivo → Cursos → Roles y permisos → Usuarios →
@@ -36,6 +39,16 @@ import '../widgets/banner_info.dart';
 /// existe) y el historial completo de inscripciones de ciclos
 /// anteriores (existe en el backend vía `AlumnosController::mostrar()`
 /// pero no tiene UI propia todavía — se puede sumar más adelante).
+///
+/// El botón "Agregar" de acá abre el alta de UN alumno suelto (diálogo
+/// `_FormularioAlta`). Para cargar la matrícula completa de una
+/// institución que recién arranca con el sistema (varios cientos de
+/// alumnos, repartidos en pocos cursos), eso es engorroso — hay que
+/// volver a elegir el curso en cada alumno, y para 2°-5° año ni
+/// siquiera existe un alta con curso incluido (`IngresantesController`
+/// es solo para 1er año). "Inscribir por curso" (`InscripcionPorCursoScreen`)
+/// resuelve ese caso: se elige el curso una sola vez y se cargan todos
+/// sus alumnos seguidos, sin repetir el paso del curso en cada uno.
 
 class AlumnosScreen extends StatefulWidget {
   const AlumnosScreen({super.key});
@@ -53,14 +66,44 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
   late final NivelRepository _repositorioNiveles;
 
   final _busquedaController = TextEditingController();
+  Timer? _debounceBusqueda;
 
-  bool _cargando = true;
+  /// Solo la carga inicial (ciclo/niveles/cursos, antes de que la
+  /// pantalla sea siquiera usable) — separado de `_cargando` (una
+  /// búsqueda en curso) para que buscar no reemplace toda la pantalla
+  /// por un spinner y esconda el buscador.
+  bool _cargandoInicial = true;
+  bool _cargando = false;
   ApiException? _errorCarga;
+
+  /// A propósito arranca vacío y NUNCA se llena con "todos los alumnos"
+  /// — con una institución de ~700 alumnos, traer el legajo completo de
+  /// una sola vez (y encima en cada tecla que se tipea) es justo lo que
+  /// hay que evitar. Solo se pide al backend cuando hay una búsqueda de
+  /// 2+ caracteres o un curso elegido en el desplegable — ver
+  /// `_buscar()` y `_onCambioBusqueda()`.
   List<Alumno> _alumnos = const [];
+
   CicloLectivo? _cicloActual;
   List<Curso> _cursosDelCiclo = const [];
   List<Nivel> _niveles = const [];
   int? _filtroCursoId;
+
+  /// Prende/apaga el panel de "Inscripción por curso" — a propósito NO
+  /// es una pantalla con `Navigator.push` propia, ver el docblock de
+  /// `InscripcionPorCursoScreen`.
+  bool _modoInscripcionPorCurso = false;
+
+  /// La matrícula completa que necesita `InscripcionPorCursoScreen` para
+  /// calcular cuántos alumnos tiene cargados cada curso — a diferencia
+  /// de `_alumnos` (la búsqueda de la pantalla principal, que arranca
+  /// vacía a propósito), esta SÍ se pide completa, pero solo en el
+  /// momento en que se abre ese panel — no en la carga inicial de
+  /// Alumnos. Es una sola pasada (no 700 peticiones, una lista de 700
+  /// filas), y solo la paga quien realmente entra a cargar matrícula
+  /// masiva, no cualquiera que abre "Alumnos" a buscar un DNI.
+  List<Alumno> _alumnosParaInscripcionPorCurso = const [];
+  bool _cargandoInscripcionPorCurso = false;
 
   @override
   void initState() {
@@ -77,8 +120,26 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
 
   @override
   void dispose() {
+    _debounceBusqueda?.cancel();
     _busquedaController.dispose();
     super.dispose();
+  }
+
+  /// `_cursosDelCiclo` llega del backend en el orden en que se crearon
+  /// los cursos, no por año — acá se reordena por `numero_orden` real
+  /// de `Nivel` (no el nombre) y, dentro de cada año, por división (por
+  /// `id`, ya que no hay un orden explícito de división en el modelo).
+  /// Mismo criterio que `InscripcionPorCursoScreen._cursosOrdenados`.
+  List<Curso> get _cursosOrdenados {
+    final ordenPorNivel = {for (final nivel in _niveles) nivel.id: nivel.numeroOrden};
+    final lista = [..._cursosDelCiclo];
+    lista.sort((a, b) {
+      final ordenA = ordenPorNivel[a.nivelId] ?? 0;
+      final ordenB = ordenPorNivel[b.nivelId] ?? 0;
+      if (ordenA != ordenB) return ordenA.compareTo(ordenB);
+      return a.divisionId.compareTo(b.divisionId);
+    });
+    return lista;
   }
 
   List<Curso> get _cursosDeNivelUno {
@@ -90,12 +151,14 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
       }
     }
     if (nivelUno == null) return const [];
-    return _cursosDelCiclo.where((c) => c.nivelId == nivelUno!.id).toList(growable: false);
+    final cursos = _cursosDelCiclo.where((c) => c.nivelId == nivelUno!.id).toList();
+    cursos.sort((a, b) => a.divisionId.compareTo(b.divisionId));
+    return cursos;
   }
 
   Future<void> _cargarInicial() async {
     setState(() {
-      _cargando = true;
+      _cargandoInicial = true;
       _errorCarga = null;
     });
 
@@ -112,7 +175,6 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
       final resultados = await Future.wait([
         _repositorioNiveles.obtenerTodos(),
         abierto == null ? Future.value(<Curso>[]) : _repositorioCursos.obtenerDeCiclo(abierto.id),
-        _repositorio.obtenerTodos(),
       ]);
 
       if (!mounted) return;
@@ -120,23 +182,54 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
         _cicloActual = abierto;
         _niveles = resultados[0] as List<Nivel>;
         _cursosDelCiclo = resultados[1] as List<Curso>;
-        _alumnos = resultados[2] as List<Alumno>;
-        _cargando = false;
+        _cargandoInicial = false;
       });
     } on ApiException catch (error) {
       if (!mounted) return;
       setState(() {
-        _cargando = false;
+        _cargandoInicial = false;
         _errorCarga = error;
       });
     }
   }
 
+  /// Se dispara con cada tecla del campo de búsqueda, pero con un
+  /// debounce de 400ms y un mínimo de 2 caracteres — así no se manda
+  /// una petición por cada letra tipeada, ni se buscan coincidencias
+  /// tan cortas que devuelvan medio padrón. Vaciar el campo del todo
+  /// también dispara (sin esperar el mínimo) para limpiar los
+  /// resultados enseguida.
+  void _onCambioBusqueda(String texto) {
+    _debounceBusqueda?.cancel();
+    final trimmed = texto.trim();
+    if (trimmed.isEmpty) {
+      _buscar();
+      return;
+    }
+    if (trimmed.length < 2) return;
+    _debounceBusqueda = Timer(const Duration(milliseconds: 400), _buscar);
+  }
+
+  /// A propósito NO le pide nada al backend si no hay ningún filtro
+  /// activo (ni texto de búsqueda ni curso elegido) — con ~700 alumnos
+  /// en una institución grande, ese es justo el pedido que hay que
+  /// evitar. El botón "Buscar" y el campo de texto (con su propio
+  /// mínimo de caracteres, ver `_onCambioBusqueda`) son las únicas
+  /// puertas de entrada.
   Future<void> _buscar() async {
+    final busqueda = _busquedaController.text.trim();
+    if (busqueda.isEmpty && _filtroCursoId == null) {
+      setState(() {
+        _alumnos = const [];
+        _cargando = false;
+      });
+      return;
+    }
+
     setState(() => _cargando = true);
     try {
       final alumnos = await _repositorio.obtenerTodos(
-        busqueda: _busquedaController.text.trim(),
+        busqueda: busqueda,
         cursoId: _filtroCursoId,
       );
       if (!mounted) return;
@@ -166,6 +259,37 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
     if (resultado == true) _buscar();
   }
 
+  /// A diferencia de `_buscar()` (que a propósito no trae nada sin un
+  /// filtro), acá SÍ hace falta la matrícula completa — es la única
+  /// forma de calcular cuántos alumnos tiene cada curso en la grilla de
+  /// `InscripcionPorCursoScreen`. Se pide en el momento en que se entra
+  /// a este panel (no en la carga inicial de Alumnos), así que solo la
+  /// paga quien realmente lo usa.
+  Future<void> _abrirInscripcionPorCurso() async {
+    if (_cicloActual == null) return;
+    setState(() => _cargandoInscripcionPorCurso = true);
+    try {
+      final todos = await _repositorio.obtenerTodos();
+      if (!mounted) return;
+      setState(() {
+        _alumnosParaInscripcionPorCurso = todos;
+        _modoInscripcionPorCurso = true;
+        _cargandoInscripcionPorCurso = false;
+      });
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _cargandoInscripcionPorCurso = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.mensaje), backgroundColor: AppColors.error),
+      );
+    }
+  }
+
+  void _cerrarInscripcionPorCurso({required bool alumnosAgregados}) {
+    setState(() => _modoInscripcionPorCurso = false);
+    if (alumnosAgregados) _buscar();
+  }
+
   Future<void> _abrirEditar(Alumno alumno) async {
     final resultado = await showDialog<bool>(
       context: context,
@@ -181,7 +305,7 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
       builder: (_) => _FormularioTraslado(
         repositorio: _repositorioTraslados,
         cicloLectivoId: _cicloActual!.id,
-        cursosDelCiclo: _cursosDelCiclo,
+        cursosDelCiclo: _cursosOrdenados,
         alumno: alumno,
       ),
     );
@@ -250,7 +374,7 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_cargando && _alumnos.isEmpty && _errorCarga == null) {
+    if (_cargandoInicial && _errorCarga == null) {
       return const Center(child: CircularProgressIndicator());
     }
 
@@ -269,6 +393,26 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                 label: const Text('Reintentar'),
               ),
             ],
+          ),
+        ),
+      );
+    }
+
+    if (_modoInscripcionPorCurso) {
+      return Padding(
+        padding: const EdgeInsets.all(32),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 780),
+            child: InscripcionPorCursoScreen(
+              repositorioAlumnos: _repositorio,
+              repositorioTraslados: _repositorioTraslados,
+              cicloLectivoId: _cicloActual!.id,
+              cursosDelCiclo: _cursosDelCiclo,
+              niveles: _niveles,
+              alumnos: _alumnosParaInscripcionPorCurso,
+              onCerrar: _cerrarInscripcionPorCurso,
+            ),
           ),
         ),
       );
@@ -316,6 +460,22 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                   label: const Text('Ver eliminados'),
                 ),
                 const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: (_cicloActual == null ||
+                          _cursosDelCiclo.isEmpty ||
+                          _cargandoInscripcionPorCurso)
+                      ? null
+                      : _abrirInscripcionPorCurso,
+                  icon: _cargandoInscripcionPorCurso
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.groups_outlined, size: 18),
+                  label: const Text('Inscribir por curso'),
+                ),
+                const SizedBox(width: 12),
                 ElevatedButton.icon(
                   onPressed: _abrirAlta,
                   style: ElevatedButton.styleFrom(
@@ -359,6 +519,7 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                       contentPadding: const EdgeInsets.symmetric(vertical: 12),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                     ),
+                    onChanged: _onCambioBusqueda,
                     onSubmitted: (_) => _buscar(),
                   ),
                 ),
@@ -376,7 +537,7 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                       hint: const Text('Todos los cursos', style: TextStyle(fontSize: 13)),
                       items: [
                         const DropdownMenuItem<int?>(value: null, child: Text('Todos los cursos')),
-                        ..._cursosDelCiclo.map(
+                        ..._cursosOrdenados.map(
                           (c) => DropdownMenuItem<int?>(
                             value: c.id,
                             child: Text('${c.nivelNombre ?? ''} ${c.divisionNombre ?? ''}'),
@@ -398,12 +559,22 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
               ],
             ),
             const SizedBox(height: 20),
-            if (_alumnos.isEmpty)
+            if (_cargando)
               const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_alumnos.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Text(
-                  'No se encontró ningún alumno con estos filtros.',
-                  style: TextStyle(fontSize: 13, color: AppColors.textoSecundario),
+                  _busquedaController.text.trim().isEmpty && _filtroCursoId == null
+                      ? 'Buscá por nombre, apellido o DNI, o elegí un curso para '
+                          'ver su listado — con la matrícula completa de la '
+                          'institución no tiene sentido mostrarlos a todos '
+                          'de entrada.'
+                      : 'No se encontró ningún alumno con estos filtros.',
+                  style: const TextStyle(fontSize: 13, color: AppColors.textoSecundario),
                 ),
               )
             else
@@ -1461,3 +1632,4 @@ class _DialogoAlumnosEliminadosState extends State<_DialogoAlumnosEliminados> {
     );
   }
 }
+

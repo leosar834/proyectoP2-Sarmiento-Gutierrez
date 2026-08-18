@@ -62,6 +62,25 @@ class GruposTallerController extends Controller
     }
 
     /**
+     * Grupos de taller dados de baja de este ciclo — mismo razonamiento
+     * que `CursosController::eliminados()`. A diferencia de Especialidad,
+     * la unicidad de `nombre_grupo` se valida con un `Rule::unique`
+     * genérico (sin el mensaje "(id X)"), así que este listado es la
+     * única forma de restaurar un grupo de taller borrado.
+     */
+    public function eliminados(CicloLectivo $ciclo): JsonResponse
+    {
+        $grupos = GrupoTaller::onlyTrashed()
+            ->where('ciclo_lectivo_id', $ciclo->id_ciclo_lectivo)
+            ->withCount('inscripciones')
+            ->get();
+
+        return response()->json([
+            'data' => $grupos->map(fn ($g) => $this->formatearGrupo($g))->values(),
+        ]);
+    }
+
+    /**
      * Asignación por lote: REEMPLAZA la membresía de la MISMA materia
      * (no de todo el ciclo, como en educación física) — un alumno
      * puede estar simultáneamente en un grupo de "Electricidad" y otro
@@ -145,6 +164,70 @@ class GruposTallerController extends Controller
             'data' => [
                 'grupo_taller_id' => $grupo->id_grupo_taller,
                 'asignados' => $asignados,
+            ],
+        ]);
+    }
+
+    /**
+     * Listado de solo lectura de quién está asignado a este grupo —
+     * complementa a `asignarLote()` (que sigue siendo el único que
+     * modifica la membresía) y a `index()` (que solo trae el conteo,
+     * `alumnos_asignados`). Un grupo de taller junta alumnos de varias
+     * divisiones del mismo nivel (`asignarLote()` solo exige que
+     * compartan `nivel_id`, no `curso_id`), así que la fila de cada
+     * alumno incluye de qué división viene, no solo el nombre.
+     */
+    public function alumnos(GrupoTaller $grupo): JsonResponse
+    {
+        $inscripciones = $grupo->inscripciones()
+            ->with(['alumno', 'curso.division'])
+            ->get()
+            ->sortBy(fn (Inscripcion $i) => $i->alumno->apellido.' '.$i->alumno->nombre)
+            ->values();
+
+        return response()->json([
+            'data' => $inscripciones->map(fn (Inscripcion $i) => [
+                'id_inscripcion' => $i->id_inscripcion,
+                'alumno' => [
+                    'id_alumno' => $i->alumno->id_alumno,
+                    'nombre' => $i->alumno->nombre,
+                    'apellido' => $i->alumno->apellido,
+                    'dni' => $i->alumno->dni,
+                ],
+                'curso_division' => $i->curso->division->nombre ?? null,
+            ]),
+        ]);
+    }
+
+    /**
+     * Saca a UN alumno puntual de este grupo — para corregir un error
+     * de carga (ej. se lo asignó al grupo equivocado) sin recurrir a
+     * `asignarLote()`, que reemplaza el lote entero y de paso movería a
+     * todos los demás. Solo afecta la fila `alumnos_grupos_taller` de
+     * ESTE grupo con ESTA inscripción — si el alumno está en otro grupo
+     * de otra materia (o incluso en otro grupo de la misma materia por
+     * algún motivo), esa fila no se toca. Idempotente: desasignar a
+     * alguien que ya no está en el grupo no es un error, simplemente no
+     * borra nada.
+     */
+    public function desasignarAlumno(GrupoTaller $grupo, Inscripcion $inscripcion): JsonResponse
+    {
+        if ($grupo->cicloLectivo->estado !== 'abierto') {
+            throw ValidationException::withMessages([
+                'grupo' => ['No se puede modificar la asignación de un grupo de un ciclo lectivo cerrado y archivado de solo lectura.'],
+            ]);
+        }
+
+        DB::table('alumnos_grupos_taller')
+            ->where('grupo_taller_id', $grupo->id_grupo_taller)
+            ->where('inscripcion_id', $inscripcion->id_inscripcion)
+            ->delete();
+
+        return response()->json([
+            'data' => [
+                'id_grupo_taller' => $grupo->id_grupo_taller,
+                'id_inscripcion' => $inscripcion->id_inscripcion,
+                'desasignado' => true,
             ],
         ]);
     }
