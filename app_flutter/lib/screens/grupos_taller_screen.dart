@@ -886,7 +886,7 @@ class _DialogoPersonalGrupoTallerState extends State<_DialogoPersonalGrupoTaller
                     )
                   : ListView.separated(
                       itemCount: _usuariosFiltrados.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final usuario = _usuariosFiltrados[index];
                         final rolActual = _rolPorUsuario[usuario.id];
@@ -1097,7 +1097,7 @@ class _DialogoAlumnosDeGrupoTallerState extends State<_DialogoAlumnosDeGrupoTall
                           Expanded(
                             child: ListView.separated(
                               itemCount: _alumnos.length,
-                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              separatorBuilder: (_, _) => const Divider(height: 1),
                               itemBuilder: (context, index) {
                                 final alumno = _alumnos[index];
                                 final desasignando = _desasignando.contains(alumno.inscripcionId);
@@ -1429,7 +1429,7 @@ class _DialogoAsignarAlumnosTallerState extends State<_DialogoAsignarAlumnosTall
                         )
                       : ListView.separated(
                           itemCount: _alumnosDelCurso.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          separatorBuilder: (_, _) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final alumno = _alumnosDelCurso[index];
                             final inscripcionId = alumno.inscripcionActual!.id;
@@ -1552,7 +1552,7 @@ class _DialogoGruposTallerEliminadosState extends State<_DialogoGruposTallerElim
                         child: ListView.separated(
                           shrinkWrap: true,
                           itemCount: _eliminados.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          separatorBuilder: (_, _) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final grupo = _eliminados[index];
                             return ListTile(

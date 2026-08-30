@@ -646,7 +646,7 @@ class _DialogoMateriasEliminadasState extends State<_DialogoMateriasEliminadas> 
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: _eliminadas.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final materia = _eliminadas[index];
                     return ListTile(

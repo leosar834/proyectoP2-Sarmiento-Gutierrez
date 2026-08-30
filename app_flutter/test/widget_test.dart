@@ -1,30 +1,27 @@
-// This is a basic Flutter widget test.
+// Smoke test básico de arranque de la app.
 //
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+// El stub que genera `flutter create` prueba un contador que nunca
+// existió acá (referenciaba `MyApp`, una clase que no existe en este
+// proyecto — la raíz real es `AsistenciaApp`, ver lib/main.dart). Este
+// test lo reemplaza por algo mínimo pero real: que la app arranca sin
+// tirar una excepción y que, antes de que `AuthProvider` resuelva si hay
+// sesión guardada (`AuthStatus.desconocido`), se ve el loading inicial
+// (`CircularProgressIndicator` dentro de `SplashScreen`).
+//
+// A propósito NO se usa `tester.pumpAndSettle()`: `AuthProvider` dispara
+// una petición HTTP real post-frame (`cargarSesionGuardada`), y en el
+// entorno de test no hay backend — `pumpAndSettle` se quedaría esperando
+// esa petición. Un solo `pump()` alcanza para ver el estado inicial.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:app_flutter/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('La app arranca y muestra el loading inicial', (WidgetTester tester) async {
+    await tester.pumpWidget(const AsistenciaApp());
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 }

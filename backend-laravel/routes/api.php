@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\AperturaCicloController;
 use App\Http\Controllers\Api\IngresantesController;
 use App\Http\Controllers\Api\GruposEdFisicaController;
 use App\Http\Controllers\Api\GruposTallerController;
+use App\Http\Controllers\Api\ImportacionAlumnosController;
 use App\Http\Controllers\Api\DistribucionEspecialidadesController;
 use App\Http\Controllers\Api\PermisosController;
 use App\Http\Controllers\Api\RolesController;
@@ -38,6 +39,10 @@ Route::post('/login', [AuthController::class, 'login']);
 // controller para la guarda de seguridad (solo funciona si el sistema
 // todavía no tiene NINGÚN usuario, ni siquiera borrado).
 Route::post('/registro-administrador', [RegistroAdministradorController::class, 'crear']);
+
+// Plantilla de importación de alumnos — sin auth a propósito, ver el
+// docblock de ImportacionAlumnosController.
+Route::get('/alumnos/plantilla-importacion', [ImportacionAlumnosController::class, 'plantilla']);
 
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -70,6 +75,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::middleware('permiso:editar_asistencia_del_dia')->group(function () {
+        Route::get('/planillas/{planilla}/alumnos', [AsistenciaController::class, 'alumnos']);
         Route::put('/planillas/{planilla}/detalles', [AsistenciaController::class, 'guardarDetalles']);
         Route::post('/planillas/{planilla}/enviar', [AsistenciaController::class, 'enviar']);
     });
@@ -222,6 +228,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Literal ANTES de la ruta con {alumno} — si no, Laravel intenta
         // resolver "eliminados" como un id de alumno vía route-model-binding.
         Route::get('/alumnos/eliminados', [AlumnosController::class, 'eliminados']);
+        Route::post('/alumnos/importar', [ImportacionAlumnosController::class, 'importar']);
         Route::get('/alumnos/{alumno}', [AlumnosController::class, 'mostrar']);
         Route::post('/alumnos', [AlumnosController::class, 'crear']);
         Route::get('/alumnos', [AlumnosController::class, 'index']);

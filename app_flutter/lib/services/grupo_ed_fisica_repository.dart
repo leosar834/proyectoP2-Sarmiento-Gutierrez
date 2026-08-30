@@ -102,9 +102,9 @@ class GrupoEdFisicaRepository {
     final respuesta = await _apiClient.post('/grupos-ed-fisica/$id/asignar-lote', body: {
       if (inscripcionIds != null && inscripcionIds.isNotEmpty)
         'inscripcion_ids': inscripcionIds,
-      if (cursoId != null) 'curso_id': cursoId,
-      if (divisionId != null) 'division_id': divisionId,
-      if (especialidadId != null) 'especialidad_id': especialidadId,
+      'curso_id': ?cursoId,
+      'division_id': ?divisionId,
+      'especialidad_id': ?especialidadId,
     }) as Map<String, dynamic>;
 
     final datos = respuesta['data'] as Map<String, dynamic>;

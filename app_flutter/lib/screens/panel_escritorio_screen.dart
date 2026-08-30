@@ -16,6 +16,7 @@ import 'grupos_taller_screen.dart';
 import 'institucion_screen.dart';
 import 'materias_taller_screen.dart';
 import 'niveles_screen.dart';
+import 'permisos_diarios_screen.dart';
 import 'roles_screen.dart';
 import 'usuarios_screen.dart';
 
@@ -25,10 +26,11 @@ import 'usuarios_screen.dart';
 /// móvil sigue usando el placeholder, porque su pantalla de inicio real
 /// es "tomar asistencia" (RF2), un desarrollo aparte.
 ///
-/// "Inicio", "Institución", "Ciclo lectivo", "Niveles", "Divisiones",
-/// "Cursos", "Usuarios", "Roles", "Alumnos", "Especialidades", "Materias
-/// de Taller", "Grupos de Taller" y "Grupos de Ed. Física" tienen
-/// contenido real hoy — solo "Reportes" y "Alertas" siguen pendientes:
+/// "Inicio", "Institución", "Ciclo lectivo", "Permisos diarios",
+/// "Niveles", "Divisiones", "Cursos", "Usuarios", "Roles", "Alumnos",
+/// "Especialidades", "Materias de Taller", "Grupos de Taller" y "Grupos
+/// de Ed. Física" tienen contenido real hoy — solo "Reportes" y
+/// "Alertas" siguen pendientes:
 /// ya tienen su API lista en el backend (`permiso:gestionar_sistema`
 /// para gestión, RF asistencia para el resto), pero construir cada
 /// pantalla es trabajo aparte; se muestran acá como navegación real con
@@ -59,6 +61,7 @@ enum _Seccion {
   gruposTaller,
   gruposEdFisica,
   cicloLectivo,
+  permisosDiarios,
   reportes,
   alertas,
   institucion,
@@ -153,6 +156,12 @@ const _itemsMenu = [
     seccion: _Seccion.cicloLectivo,
     etiqueta: 'Ciclo lectivo',
     icono: Icons.event_repeat_outlined,
+    disponible: true,
+  ),
+  _ItemMenu(
+    seccion: _Seccion.permisosDiarios,
+    etiqueta: 'Permisos diarios',
+    icono: Icons.lock_clock_outlined,
     disponible: true,
   ),
   _ItemMenu(
@@ -267,6 +276,8 @@ class _PanelEscritorioScreenState extends State<PanelEscritorioScreen> {
         );
       case _Seccion.cicloLectivo:
         return const CicloLectivoScreen();
+      case _Seccion.permisosDiarios:
+        return const PermisosDiariosScreen();
       case _Seccion.niveles:
         return const NivelesScreen();
       case _Seccion.divisiones:

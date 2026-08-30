@@ -17,7 +17,7 @@ class MateriaTallerRepository {
 
   Future<List<MateriaTaller>> obtenerTodos({int? especialidadId}) async {
     final respuesta = await _apiClient.get('/materias-taller', query: {
-      if (especialidadId != null) 'especialidad_id': especialidadId,
+      'especialidad_id': ?especialidadId,
     }) as Map<String, dynamic>;
     final datos = respuesta['data'] as List<dynamic>;
     return datos
@@ -65,7 +65,7 @@ class MateriaTallerRepository {
   /// por especialidad que `obtenerTodos()`.
   Future<List<MateriaTaller>> obtenerEliminados({int? especialidadId}) async {
     final respuesta = await _apiClient.get('/materias-taller/eliminados', query: {
-      if (especialidadId != null) 'especialidad_id': especialidadId,
+      'especialidad_id': ?especialidadId,
     }) as Map<String, dynamic>;
     final datos = respuesta['data'] as List<dynamic>;
     return datos

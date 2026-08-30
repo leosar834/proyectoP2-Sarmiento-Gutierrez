@@ -54,6 +54,17 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
+  # Elegir el archivo .xlsx a subir en "Importar alumnos" (ver
+  # lib/screens/importar_alumnos_screen.dart) — multiplataforma
+  # (web/desktop/móvil) sin código nativo propio.
+  file_picker: ^8.1.4
+
+  # Abrir la descarga de la plantilla de importación (`GET
+  # /alumnos/plantilla-importacion`, sin auth) en el navegador — más
+  # simple que implementar una descarga autenticada de un archivo
+  # binario a mano.
+  url_launcher: ^6.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

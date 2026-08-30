@@ -15,7 +15,7 @@ class AlumnoRepository {
   Future<List<Alumno>> obtenerTodos({String? busqueda, int? cursoId}) async {
     final respuesta = await _apiClient.get('/alumnos', query: {
       if (busqueda != null && busqueda.isNotEmpty) 'busqueda': busqueda,
-      if (cursoId != null) 'curso_id': cursoId,
+      'curso_id': ?cursoId,
     }) as Map<String, dynamic>;
     final datos = respuesta['data'] as List<dynamic>;
     return datos

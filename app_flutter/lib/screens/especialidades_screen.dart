@@ -543,7 +543,7 @@ class _DialogoEspecialidadesEliminadasState extends State<_DialogoEspecialidades
                         child: ListView.separated(
                           shrinkWrap: true,
                           itemCount: _eliminadas.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          separatorBuilder: (_, _) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final especialidad = _eliminadas[index];
                             return ListTile(

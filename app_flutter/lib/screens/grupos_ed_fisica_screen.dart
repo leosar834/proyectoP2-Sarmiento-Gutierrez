@@ -1007,7 +1007,7 @@ class _DialogoAsignarAlumnosEdFisicaState extends State<_DialogoAsignarAlumnosEd
                         )
                       : ListView.separated(
                           itemCount: _alumnosDelCurso.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          separatorBuilder: (_, _) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final alumno = _alumnosDelCurso[index];
                             final inscripcionId = alumno.inscripcionActual!.id;
@@ -1130,7 +1130,7 @@ class _DialogoGruposEdFisicaEliminadosState extends State<_DialogoGruposEdFisica
                         child: ListView.separated(
                           shrinkWrap: true,
                           itemCount: _eliminados.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          separatorBuilder: (_, _) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final grupo = _eliminados[index];
                             return ListTile(

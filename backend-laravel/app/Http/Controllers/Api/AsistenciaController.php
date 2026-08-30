@@ -184,6 +184,63 @@ class AsistenciaController extends Controller
     }
 
     /**
+     * Roster para pintar la grilla de "tomar asistencia": una fila por
+     * cada inscripción activa del curso, con el `estado` ya cargado si
+     * existe un detalle para hoy, o `null` si todavía no se marcó nada.
+     * Sin esto, el cliente no tiene forma de saber a quién mostrarle un
+     * casillero — recién abierta, la planilla no tiene ningún
+     * `DetalleAsistencia` (esos se crean uno por uno al guardar).
+     *
+     * Alcance de este método, a propósito acotado: solo área `teorica`
+     * por ahora (ver el docblock de la clase — `taller`/`ed_fisica`
+     * quedan para una vuelta aparte, cada una con su propio criterio de
+     * "quiénes son los alumnos del grupo").
+     */
+    public function alumnos(Request $request, PlanillaAsistencia $planilla): JsonResponse
+    {
+        $usuario = $request->user();
+
+        if (! $this->usuarioPertenece($usuario, $planilla)) {
+            throw ValidationException::withMessages([
+                'planilla' => ['Esa planilla no corresponde a un curso/grupo tuyo.'],
+            ]);
+        }
+
+        if ($planilla->area !== 'teorica') {
+            throw ValidationException::withMessages([
+                'planilla' => ['La lista de alumnos todavía no está implementada para taller/educación física.'],
+            ]);
+        }
+
+        $detallesPorInscripcion = $planilla->detalles()->get()->keyBy('inscripcion_id');
+
+        $alumnos = $planilla->curso
+            ->inscripciones()
+            ->where('estado', 'activo')
+            ->with('alumno')
+            ->get()
+            ->sortBy(fn ($inscripcion) => $inscripcion->alumno->apellido.$inscripcion->alumno->nombre)
+            ->values()
+            ->map(function ($inscripcion) use ($detallesPorInscripcion) {
+                $detalle = $detallesPorInscripcion->get($inscripcion->id_inscripcion);
+
+                return [
+                    'inscripcion_id' => $inscripcion->id_inscripcion,
+                    'alumno' => [
+                        'id_alumno' => $inscripcion->alumno->id_alumno,
+                        'nombre' => $inscripcion->alumno->nombre,
+                        'apellido' => $inscripcion->alumno->apellido,
+                        'dni' => $inscripcion->alumno->dni,
+                    ],
+                    'estado' => $detalle?->estado,
+                    'observaciones' => $detalle?->observaciones,
+                ];
+            });
+
+        return response()->json(['data' => $alumnos->values()]);
+    }
+
+    /**
      * Carga o corrige el estado de todos los alumnos de la planilla,
      * de una — ver la nota en GuardarDetallesRequest. Sirve tanto para
      * la carga inicial (tomar_asistencia) como para las correcciones

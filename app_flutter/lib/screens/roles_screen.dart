@@ -749,7 +749,7 @@ class _DialogoRolesEliminadosState extends State<_DialogoRolesEliminados> {
                         child: ListView.separated(
                           shrinkWrap: true,
                           itemCount: _eliminados.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          separatorBuilder: (_, _) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final rol = _eliminados[index];
                             return ListTile(

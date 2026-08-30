@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
-import 'home_placeholder_screen.dart';
 import 'login_screen.dart';
+import 'mis_asignaciones_screen.dart';
 import 'panel_escritorio_screen.dart';
 
 /// Punto de entrada de la app: mientras `AuthProvider` todavía no sabe si
@@ -13,9 +13,11 @@ import 'panel_escritorio_screen.dart';
 ///
 /// Autenticado, el destino depende de la plataforma sellada en el token
 /// (ver `AuthProvider.plataforma`): escritorio va al panel de
-/// administración real (`PanelEscritorioScreen`); móvil sigue en el
-/// placeholder — su pantalla de inicio real es "tomar asistencia" (RF2),
-/// un desarrollo aparte.
+/// administración real (`PanelEscritorioScreen`); móvil va a "Mis
+/// cursos" (`MisAsignacionesScreen`), que es la puerta de entrada a
+/// tomar asistencia (RF2). Por ahora solo lleva a algo real para
+/// asignaciones de área `teorica` — taller/ed_fisica quedan pendientes,
+/// ver el docblock de esa pantalla.
 ///
 /// `AuthStatus.autenticando` queda agrupado con `noAutenticado` (sigue
 /// mostrando `LoginScreen`), NO con `desconocido` — bug real encontrado
@@ -63,7 +65,7 @@ class _SplashScreenState extends State<SplashScreen> {
           case AuthStatus.autenticado:
             return auth.plataforma == 'escritorio'
                 ? const PanelEscritorioScreen()
-                : const HomePlaceholderScreen();
+                : const MisAsignacionesScreen();
         }
       },
     );

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data' show Uint8List;
 
 import 'package:http/http.dart' as http;
 
@@ -89,6 +90,49 @@ class ApiClient {
     return _decode(
       _send(() => _httpClient.delete(_uri(path), headers: _headers)),
     );
+  }
+
+  /// `POST` con un archivo adjunto (`multipart/form-data`) — usado hoy
+  /// solo por "Importar alumnos" (`POST /alumnos/importar`). Aparte de
+  /// `get/post/put/patch/delete` porque un archivo no se puede mandar
+  /// como body JSON: no hay `Content-Type` fijo acá, `http.MultipartRequest`
+  /// arma el suyo propio (con el boundary) al enviarse — por eso NO usa
+  /// `_headers` (que fuerza `application/json`), solo agrega `Accept` y
+  /// `Authorization` a mano.
+  Future<dynamic> postMultipart(
+    String path, {
+    required String campoArchivo,
+    required Uint8List bytes,
+    required String nombreArchivo,
+  }) {
+    return _decode(_enviarMultipart(path, campoArchivo, bytes, nombreArchivo));
+  }
+
+  Future<http.Response> _enviarMultipart(
+    String path,
+    String campoArchivo,
+    Uint8List bytes,
+    String nombreArchivo,
+  ) async {
+    try {
+      final request = http.MultipartRequest('POST', _uri(path))
+        ..headers['Accept'] = 'application/json';
+      if (_token != null) {
+        request.headers['Authorization'] = 'Bearer $_token';
+      }
+      request.files.add(
+        http.MultipartFile.fromBytes(campoArchivo, bytes, filename: nombreArchivo),
+      );
+
+      final streamedResponse =
+          await _httpClient.send(request).timeout(const Duration(seconds: 30));
+      return await http.Response.fromStream(streamedResponse);
+    } on TimeoutException {
+      throw ApiException.red('El servidor tardó demasiado en responder.');
+    } catch (error) {
+      if (error is ApiException) rethrow;
+      throw ApiException.red();
+    }
   }
 
   Future<http.Response> _send(Future<http.Response> Function() peticion) async {

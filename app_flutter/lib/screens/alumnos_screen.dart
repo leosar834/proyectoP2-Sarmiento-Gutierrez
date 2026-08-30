@@ -12,12 +12,14 @@ import '../services/alumno_repository.dart';
 import '../services/api_exception.dart';
 import '../services/ciclo_lectivo_repository.dart';
 import '../services/curso_repository.dart';
+import '../services/importacion_alumnos_repository.dart';
 import '../services/ingresante_repository.dart';
 import '../services/nivel_repository.dart';
 import '../services/traslado_repository.dart';
 import '../theme/app_colors.dart';
 import '../widgets/banner_error.dart';
 import '../widgets/banner_info.dart';
+import 'importar_alumnos_screen.dart';
 import 'inscripcion_por_curso_screen.dart';
 
 /// Sección "Alumnos" del panel de escritorio — el último paso del plan
@@ -49,6 +51,15 @@ import 'inscripcion_por_curso_screen.dart';
 /// es solo para 1er año). "Inscribir por curso" (`InscripcionPorCursoScreen`)
 /// resuelve ese caso: se elige el curso una sola vez y se cargan todos
 /// sus alumnos seguidos, sin repetir el paso del curso en cada uno.
+///
+/// "Importar Excel" (`ImportarAlumnosScreen`, `POST /alumnos/importar`)
+/// es una tercera vía para el mismo problema: cuando la institución ya
+/// tiene la matrícula completa en una planilla, cada fila trae
+/// nivel/división además del legajo, así que crea alumno + inscripción
+/// de una sin tipear nada a mano — pensado para la carga inicial de una
+/// institución con cientos de alumnos existentes, no solo ingresantes
+/// nuevos de este ciclo (a diferencia de `IngresantesController`, no
+/// está limitado a primer año).
 
 class AlumnosScreen extends StatefulWidget {
   const AlumnosScreen({super.key});
@@ -64,6 +75,7 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
   late final CicloLectivoRepository _repositorioCiclos;
   late final CursoRepository _repositorioCursos;
   late final NivelRepository _repositorioNiveles;
+  late final ImportacionAlumnosRepository _repositorioImportacion;
 
   final _busquedaController = TextEditingController();
   Timer? _debounceBusqueda;
@@ -94,6 +106,11 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
   /// `InscripcionPorCursoScreen`.
   bool _modoInscripcionPorCurso = false;
 
+  /// Prende/apaga el panel de "Importar alumnos" — mismo criterio que
+  /// `_modoInscripcionPorCurso` (embebido, sin `Navigator.push`, ver el
+  /// docblock de `ImportarAlumnosScreen`).
+  bool _modoImportacion = false;
+
   /// La matrícula completa que necesita `InscripcionPorCursoScreen` para
   /// calcular cuántos alumnos tiene cargados cada curso — a diferencia
   /// de `_alumnos` (la búsqueda de la pantalla principal, que arranca
@@ -115,6 +132,7 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
     _repositorioCiclos = CicloLectivoRepository(apiClient);
     _repositorioCursos = CursoRepository(apiClient);
     _repositorioNiveles = NivelRepository(apiClient);
+    _repositorioImportacion = ImportacionAlumnosRepository(apiClient);
     _cargarInicial();
   }
 
@@ -274,6 +292,7 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
       setState(() {
         _alumnosParaInscripcionPorCurso = todos;
         _modoInscripcionPorCurso = true;
+        _modoImportacion = false;
         _cargandoInscripcionPorCurso = false;
       });
     } on ApiException catch (error) {
@@ -288,6 +307,18 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
   void _cerrarInscripcionPorCurso({required bool alumnosAgregados}) {
     setState(() => _modoInscripcionPorCurso = false);
     if (alumnosAgregados) _buscar();
+  }
+
+  void _abrirImportacion() {
+    setState(() {
+      _modoInscripcionPorCurso = false;
+      _modoImportacion = true;
+    });
+  }
+
+  void _cerrarImportacion(bool alumnosImportados) {
+    setState(() => _modoImportacion = false);
+    if (alumnosImportados) _buscar();
   }
 
   Future<void> _abrirEditar(Alumno alumno) async {
@@ -418,6 +449,21 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
       );
     }
 
+    if (_modoImportacion) {
+      return Padding(
+        padding: const EdgeInsets.all(32),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 780),
+            child: ImportarAlumnosScreen(
+              repositorio: _repositorioImportacion,
+              onCerrar: _cerrarImportacion,
+            ),
+          ),
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(32),
       child: ConstrainedBox(
@@ -476,6 +522,14 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                   label: const Text('Inscribir por curso'),
                 ),
                 const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: (_cicloActual == null || _cursosDelCiclo.isEmpty)
+                      ? null
+                      : _abrirImportacion,
+                  icon: const Icon(Icons.upload_file_outlined, size: 18),
+                  label: const Text('Importar Excel'),
+                ),
+                const SizedBox(width: 12),
                 ElevatedButton.icon(
                   onPressed: _abrirAlta,
                   style: ElevatedButton.styleFrom(
@@ -529,6 +583,15 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                     width: 200,
                     child: DropdownButtonFormField<int?>(
                       initialValue: _filtroCursoId,
+                      // Sin esto, el botón se dimensiona al ancho
+                      // intrínseco del ítem más largo en vez de al
+                      // `SizedBox` que lo contiene — con un curso real
+                      // cargado (nombre + división + la flecha propia
+                      // del dropdown) eso pasa los 200px fijos y
+                      // desborda. `isExpanded` hace que ocupe el ancho
+                      // disponible y respete el `overflow` del `Text` de
+                      // cada ítem en vez de exigir su ancho completo.
+                      isExpanded: true,
                       decoration: InputDecoration(
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
@@ -540,7 +603,10 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                         ..._cursosOrdenados.map(
                           (c) => DropdownMenuItem<int?>(
                             value: c.id,
-                            child: Text('${c.nivelNombre ?? ''} ${c.divisionNombre ?? ''}'),
+                            child: Text(
+                              '${c.nivelNombre ?? ''} ${c.divisionNombre ?? ''}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
                       ],
@@ -896,31 +962,41 @@ class _FormularioAltaState extends State<_FormularioAlta> {
                   BannerError(mensaje: _error!.mensaje),
                   const SizedBox(height: 12),
                 ],
-                RadioListTile<bool>(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: const Text('Ingresante nuevo (1er año)', style: TextStyle(fontSize: 13)),
-                  subtitle: const Text(
-                    'Crea el legajo y lo anota directo en un curso de 1er año.',
-                    style: TextStyle(fontSize: 11),
-                  ),
-                  value: true,
+                // Flutter 3.35 deprecó `RadioListTile.groupValue`/`onChanged`
+                // en favor de un `RadioGroup` ancestro que centraliza el
+                // valor y el callback para todo el grupo (ver
+                // https://docs.flutter.dev/release/breaking-changes/radio-api-redesign).
+                // El deshabilitado individual de la primera opción ahora se
+                // hace con `enabled: false` en vez de `onChanged: null`.
+                RadioGroup<bool>(
                   groupValue: _esIngresante,
-                  onChanged: widget.cicloActual == null || widget.cursosDeNivelUno.isEmpty
-                      ? null
-                      : (valor) => setState(() => _esIngresante = valor ?? true),
-                ),
-                RadioListTile<bool>(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: const Text('Legajo sin curso (pase a año superior)', style: TextStyle(fontSize: 13)),
-                  subtitle: const Text(
-                    'Solo crea el legajo — después se lo asigna a un curso con "Trasladar".',
-                    style: TextStyle(fontSize: 11),
+                  onChanged: (valor) =>
+                      setState(() => _esIngresante = valor ?? _esIngresante),
+                  child: Column(
+                    children: [
+                      RadioListTile<bool>(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: const Text('Ingresante nuevo (1er año)', style: TextStyle(fontSize: 13)),
+                        subtitle: const Text(
+                          'Crea el legajo y lo anota directo en un curso de 1er año.',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                        value: true,
+                        enabled: !(widget.cicloActual == null || widget.cursosDeNivelUno.isEmpty),
+                      ),
+                      RadioListTile<bool>(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: const Text('Legajo sin curso (pase a año superior)', style: TextStyle(fontSize: 13)),
+                        subtitle: const Text(
+                          'Solo crea el legajo — después se lo asigna a un curso con "Trasladar".',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                        value: false,
+                      ),
+                    ],
                   ),
-                  value: false,
-                  groupValue: _esIngresante,
-                  onChanged: (valor) => setState(() => _esIngresante = valor ?? false),
                 ),
                 if (widget.cicloActual == null)
                   const Padding(
@@ -1606,7 +1682,7 @@ class _DialogoAlumnosEliminadosState extends State<_DialogoAlumnosEliminados> {
                         child: ListView.separated(
                           shrinkWrap: true,
                           itemCount: _eliminados.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          separatorBuilder: (_, _) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final alumno = _eliminados[index];
                             return ListTile(

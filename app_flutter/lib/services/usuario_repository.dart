@@ -34,8 +34,8 @@ class UsuarioRepository {
       'apellido': apellido,
       'email': email,
       'password': password,
-      if (activo != null) 'activo': activo,
-      if (rolIds != null) 'rol_ids': rolIds,
+      'activo': ?activo,
+      'rol_ids': ?rolIds,
     }) as Map<String, dynamic>;
 
     return UsuarioGestion.fromJson(respuesta['data'] as Map<String, dynamic>);
